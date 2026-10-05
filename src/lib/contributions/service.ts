@@ -16,6 +16,7 @@ export interface SubmitContributionParams {
   contributionType: "code" | "dataset" | "benchmark" | "paper" | "review" | "analysis";
   aiAssisted: boolean;
   aiProvider: "cloud" | "local" | "none" | "gemini";
+  idempotencyId?: string;
 }
 
 /**
@@ -51,6 +52,19 @@ export async function submitContribution(
     );
   }
 
+  // Idempotency check: if an action with this idempotencyId was already committed, return it
+  if (params.idempotencyId) {
+    const { data: existing } = await client
+      .from("contributions")
+      .select("*")
+      .eq("idempotency_id", params.idempotencyId)
+      .maybeSingle();
+
+    if (existing) {
+      return existing;
+    }
+  }
+
   // 2. Server-side calculate deterministic content hash
   const contentHash = calculateContentHash(`${params.title}\n\n${params.summary}`);
 
@@ -67,6 +81,7 @@ export async function submitContribution(
       content_hash: contentHash,
       ai_assisted: params.aiAssisted,
       ai_provider: params.aiProvider,
+      idempotency_id: params.idempotencyId || null,
       status: "submitted",
     })
     .select()

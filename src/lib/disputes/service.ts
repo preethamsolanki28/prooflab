@@ -10,6 +10,7 @@ export interface OpenDisputeParams {
   contributionId?: string;
   raisedBy: string; // STRICT: Derived from auth session
   reason: string;
+  idempotencyId?: string;
 }
 
 export interface ResolveDisputeParams {
@@ -30,6 +31,19 @@ export async function openDispute(
     throw new Error("Dispute reason is required.");
   }
 
+  // Idempotency check: if an action with this idempotencyId was already committed, return it
+  if (params.idempotencyId) {
+    const { data: existing } = await client
+      .from("disputes")
+      .select("*")
+      .eq("idempotency_id", params.idempotencyId)
+      .maybeSingle();
+
+    if (existing) {
+      return existing;
+    }
+  }
+
   // 1. Insert into public.disputes
   const { data: dispute, error: dErr } = await client
     .from("disputes")
@@ -38,6 +52,7 @@ export async function openDispute(
       contribution_id: params.contributionId || null,
       raised_by: params.raisedBy,
       reason: params.reason.trim(),
+      idempotency_id: params.idempotencyId || null,
       status: "OPEN",
     })
     .select()
