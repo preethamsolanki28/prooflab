@@ -69,6 +69,7 @@ interface AuthContextType {
   signIn: (email: string, password?: string) => Promise<void>;
   signOut: () => Promise<void>;
   quickLogin: (account: SyntheticAccount) => Promise<void>;
+  switchPersona: (email: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -143,6 +144,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signIn(account.email, account.password);
   }
 
+  async function switchPersona(email: string) {
+    const acc = SYNTHETIC_ACCOUNTS.find((a) => a.email === email);
+    if (acc) {
+      await quickLogin(acc);
+    } else {
+      await signIn(email, "Password123!");
+    }
+  }
+
   async function signOut() {
     setLoading(true);
     await supabase.auth.signOut();
@@ -168,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         quickLogin,
+        switchPersona,
         refreshProfile,
       }}
     >

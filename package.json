@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test:m0": "tsx scripts/test-m0.ts",
     "test:ai-routing": "tsx scripts/test-ai-routing.ts",
+    "test:m1": "tsx scripts/test-m1.ts",
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {

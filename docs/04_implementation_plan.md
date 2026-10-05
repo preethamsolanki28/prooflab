@@ -55,30 +55,40 @@ Stop local runtime and confirm:
 
 **Gate:** If the local AI path or RLS cannot be made reliable in this hour, simplify the AI feature before building UI. Do not silently route confidential data to cloud. [PASSED: Both RLS and Dual-AI router are proven]
 
-## M1 — Project, charter, access, watermark
+## M1 — Project, charter, access, watermark [PASSED & VERIFIED]
 
 **16:00–18:00 — 2h**
 
-### TASK-M1-01 — Auth + seeded roles
-**25 min**
+### TASK-M1-01 — Auth + seeded roles [PASSED]
+- Role-aware application shell with 1-click synthetic accounts (`sponsor`, `student_a`, `student_b`, `expert`, `admin`).
+- Authoritative profiles fetched from `public.profiles`.
 
-### TASK-M1-02 — Project + public/private brief split
-**25 min**
+### TASK-M1-02 — Project + public/private brief split [PASSED]
+- Public projects list (`/projects`) renders metadata, milestones overview, and data sensitivity badges without leaking private brief content.
+- Physical row separation verified (`projects` vs `project_private_briefs`).
+- Sponsor project creation (`/projects/new`) for funded and knowledge-sharing projects.
 
-### TASK-M1-03 — Charter v1 + acceptance
-**30 min**
+### TASK-M1-03 — Charter v1 + acceptance [PASSED]
+- Full Charter v1 view with all 17 clauses displayed on project details (`/projects/[id]`).
+- Explicit engagement model acknowledgement checkbox before acceptance.
+- On acceptance: `charter_acceptances` inserted, `project_members` trigger updates status to `accepted`, and `CHARTER_ACCEPTED` entry recorded in ledger.
 
-### TASK-M1-04 — RLS policies
-**25 min**
+### TASK-M1-04 — RLS policies [PASSED]
+- Non-members querying confidential brief receive 0 rows (blocked by PostgreSQL Row-Level Security).
+- Accepted members querying confidential brief receive authorized data.
+- Audit event `PRIVATE_BRIEF_ACCESSED` recorded in append-only cryptographic ledger.
 
-### TASK-M1-05 — Viewer watermark
-**15 min**
+### TASK-M1-05 — Viewer watermark [PASSED]
+- Unlocked confidential brief renders with dynamic diagonal repeating translucent watermark:
+  `[VIEWER NAME] · [PROJECT ID] · [TIME]` (e.g. `ARJUN · 40A98CF6 · 16:50`).
+- Prevents screenshot/data leakage without provenance.
 
 Done when:
-- public summary visible;
-- private brief blocked before acceptance;
-- private brief unlocked after acceptance;
-- watermark identifies viewer/project/time.
+- public summary visible; [PASSED]
+- private brief blocked before acceptance; [PASSED]
+- private brief unlocked after acceptance; [PASSED]
+- watermark identifies viewer/project/time. [PASSED]
+- automated suite verified: `npm run test:m1` [9/9 PASSED]
 
 ## M2 — Dual AI + scoping + matching + one agent
 
