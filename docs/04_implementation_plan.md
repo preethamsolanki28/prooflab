@@ -37,22 +37,23 @@ Done when:
 - [x] Hash-chained ledger append, verification, and mutation blocks verified
 - [x] Safe Tamper Lab simulation verified on in-memory copy
 
-### TASK-M0-03 — Dual-AI router test
+### TASK-M0-03 — Dual-AI router test [COMPLETED]
 **15 min**
 
 Done when:
-- public task reaches Gemini;
-- confidential task reaches local model;
-- provider route is visible in logs/UI.
+- [x] public task reaches Gemini;
+- [x] confidential task reaches local model;
+- [x] provider route is visible in logs/UI.
 
-### TASK-M0-04 — Local-model failure test
+### TASK-M0-04 — Local-model failure test [COMPLETED]
 **10 min**
 
 Stop local runtime and confirm:
-- confidential input is NOT sent to Gemini;
-- deterministic local fallback appears.
+- [x] confidential input is NOT sent to Gemini;
+- [x] deterministic local fallback appears.
+- [x] provider status says LOCAL_AI_UNAVAILABLE.
 
-**Gate:** If the local AI path or RLS cannot be made reliable in this hour, simplify the AI feature before building UI. Do not silently route confidential data to cloud.
+**Gate:** If the local AI path or RLS cannot be made reliable in this hour, simplify the AI feature before building UI. Do not silently route confidential data to cloud. [PASSED: Both RLS and Dual-AI router are proven]
 
 ## M1 — Project, charter, access, watermark
 
@@ -270,11 +271,11 @@ Never cut:
 ## Manual smoke test
 
 ### Privacy
-- [ ] public data can use cloud LLM
-- [ ] confidential data uses local model
-- [ ] mixed/unknown data uses local model
-- [ ] local-model failure never calls cloud
-- [ ] route label visible
+- [x] public data can use cloud LLM
+- [x] confidential data uses local model
+- [x] mixed/unknown data uses local model
+- [x] local-model failure never calls cloud
+- [x] route label visible
 
 ### Access
 - [x] non-member cannot read private brief

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:m0": "tsx scripts/test-m0.ts"
+    "test:m0": "tsx scripts/test-m0.ts",
+    "test:ai-routing": "tsx scripts/test-ai-routing.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

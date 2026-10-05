@@ -66,6 +66,7 @@ Verify:
 npm run typecheck
 npm run build
 npm run test:m0
+npm run test:ai-routing
 ```
 
 ## Seed/demo
