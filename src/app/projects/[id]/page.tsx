@@ -1198,6 +1198,7 @@ export default function ProjectDetailPage({
               <ContributionSubmissionCard
                 projectId={projectId}
                 projectStatus={project.status}
+                charterVersion={charter?.version || 1}
                 milestones={dbMilestones.length > 0 ? dbMilestones : (charter?.milestones_json as any) || []}
                 userName={profile?.display_name || user?.email || "Student"}
                 userRole={profile?.role || "student"}
