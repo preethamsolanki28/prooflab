@@ -90,37 +90,44 @@ Done when:
 - watermark identifies viewer/project/time. [PASSED]
 - automated suite verified: `npm run test:m1` [9/9 PASSED]
 
-## M2 — Dual AI + scoping + matching + one agent
+## M2 — Dual AI + scoping + matching + one agent [PASSED & VERIFIED]
 
 **18:00–20:00 — 2h**
 
-### TASK-M2-01 — AI routing layer
-**25 min**
+### TASK-M2-01 — AI routing layer [PASSED]
+- Deterministic routing policy resolver: PUBLIC -> Cloud Gemini; CONFIDENTIAL/MIXED/UNKNOWN -> Local Ollama (`smollm2:135m`).
+- Hard code-level guardrail throws security violation if confidential data is directed to Gemini.
 
-### TASK-M2-02 — Gemini public scoping + Zod
-**25 min**
+### TASK-M2-02 — Gemini public scoping + Zod [PASSED]
+- Generates exactly 2 milestones validated by `ScopingResultSchema`.
+- Persists valid milestones into `public.milestones` table.
+- Deterministic fallback for rate-limit, timeout, or malformed JSON; UI visibly indicates fallback.
 
-### TASK-M2-03 — Local confidential question path
-**20 min**
+### TASK-M2-03 — Local confidential question path [PASSED]
+- Confidential prompts routed exclusively to local Ollama runtime.
+- Fail-closed local outage behavior tested and verified (Gemini never called).
 
-### TASK-M2-04 — Deterministic matching + COI exclusion
-**20 min**
+### TASK-M2-04 — Deterministic matching + COI exclusion [PASSED]
+- Transparent deterministic scoring: 70% skill overlap + 20% verification + 10% eligibility base.
+- Conflicted experts (`conflict_of_interest: true`) strictly excluded with score 0 and transparent reason.
+- LLM only provides readable summary; does not decide score or eligibility.
 
-### TASK-M2-05 — Single ResearchCopilot
-**30 min**
-
-Only two tools:
-- get_project_context;
-- draft_contribution_summary.
+### TASK-M2-05 — Single ResearchCopilot [PASSED]
+- Exactly one project-scoped agent with two tools:
+  - `get_project_context`: reads current project, charter, milestones only; blocks cross-project access.
+  - `draft_contribution_summary`: formats draft, detects AI assistance, assigns no authoritative credits.
+- Every run recorded in `public.agent_runs` with authenticated `owner_id`, `project_id`, `ai_provider`, and `data_classification`.
+- Prompt injection attempts intercepted and refused.
 
 Done when:
-- two milestones generated;
-- conflicted expert excluded;
-- public route shows cloud;
-- confidential route shows local;
-- agent run has human owner + provider;
-- cloud failure does not break public flow;
-- local failure does not leak confidential input.
+- two milestones generated; [PASSED]
+- conflicted expert excluded; [PASSED]
+- public route shows cloud; [PASSED]
+- confidential route shows local; [PASSED]
+- agent run has human owner + provider; [PASSED]
+- cloud failure does not break public flow; [PASSED]
+- local failure does not leak confidential input; [PASSED]
+- automated suite verified: `npm run test:m2` [11/11 PASSED]
 
 ## M3 — Contributions, credits, ledger, escrow, protection
 
