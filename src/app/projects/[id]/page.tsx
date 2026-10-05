@@ -28,7 +28,17 @@ import {
   Check,
   XCircle,
   AlertTriangle,
+  Gavel,
+  Calculator,
+  Scale,
 } from "lucide-react";
+import EscrowMilestoneSection from "@/components/m3/EscrowMilestoneSection";
+import ContributionSubmissionCard from "@/components/m3/ContributionSubmissionCard";
+import ContributionReviewCard from "@/components/m3/ContributionReviewCard";
+import ResearchCreditsDisplay from "@/components/m3/ResearchCreditsDisplay";
+import SponsorWithdrawalCard from "@/components/m3/SponsorWithdrawalCard";
+import DisputesSection from "@/components/m3/DisputesSection";
+import CredentialViewerCard from "@/components/m3/CredentialViewerCard";
 
 interface ProjectDetailData {
   project: {
@@ -104,8 +114,21 @@ export default function ProjectDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Active tab: overview | charter | brief | ledger
-  const [activeTab, setActiveTab] = useState<"overview" | "charter" | "brief" | "ledger">("overview");
+  // Active tab: overview | work | charter | brief | governance | ledger
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "work" | "charter" | "brief" | "governance" | "ledger"
+  >("overview");
+
+  // M3 Contributions, Credits, Disputes & Credentials State
+  const [contributions, setContributions] = useState<any[]>([]);
+  const [contributionsLoading, setContributionsLoading] = useState(false);
+  const [userCredits, setUserCredits] = useState<{ totalCredits: number; items: any[] }>({
+    totalCredits: 0,
+    items: [],
+  });
+  const [disputes, setDisputes] = useState<any[]>([]);
+  const [credentials, setCredentials] = useState<any[]>([]);
+  const [dbMilestones, setDbMilestones] = useState<any[]>([]);
 
   // Charter Acceptance State
   const [acknowledgementChecked, setAcknowledgementChecked] = useState(false);
@@ -217,13 +240,95 @@ export default function ProjectDetailPage({
     }
   };
 
+  // M3 Data Fetchers
+  const fetchContributions = async () => {
+    try {
+      setContributionsLoading(true);
+      const res = await fetch(`/api/contributions?projectId=${projectId}`);
+      const resData = await res.json();
+      if (res.ok) {
+        setContributions(resData.contributions || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setContributionsLoading(false);
+    }
+  };
+
+  const fetchCredits = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch(`/api/users/${user.id}/credits?projectId=${projectId}`);
+      const resData = await res.json();
+      if (res.ok) {
+        setUserCredits(resData);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchDisputes = async () => {
+    try {
+      const res = await fetch(`/api/disputes?projectId=${projectId}`);
+      const resData = await res.json();
+      if (res.ok) {
+        setDisputes(resData.disputes || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchCredentials = async () => {
+    try {
+      const res = await fetch(`/api/credentials?projectId=${projectId}`);
+      const resData = await res.json();
+      if (res.ok) {
+        setCredentials(resData.credentials || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchDbMilestones = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/rewards`);
+      const resData = await res.json();
+      if (res.ok) {
+        setDbMilestones(resData.milestones || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const refreshM3Data = () => {
+    fetchContributions();
+    fetchCredits();
+    fetchDisputes();
+    fetchCredentials();
+    fetchDbMilestones();
+    fetchProject();
+  };
+
   useEffect(() => {
     if (activeTab === "brief") {
       fetchBrief();
     } else if (activeTab === "ledger") {
       fetchLedger();
+    } else if (activeTab === "work" || activeTab === "governance") {
+      refreshM3Data();
     }
-  }, [activeTab, projectId, session?.access_token]);
+  }, [activeTab, projectId, session?.access_token, user?.id]);
+
+  useEffect(() => {
+    fetchContributions();
+    fetchCredits();
+    fetchDbMilestones();
+  }, [projectId, user?.id]);
 
   // Fetch Ledger entries for this project
   const fetchLedger = async () => {
@@ -500,9 +605,22 @@ export default function ProjectDetailPage({
         </div>
       </div>
 
+      {/* Sponsor Abandonment Protected Status Card */}
+      {project.status === "sponsor_withdrawn" && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-900 shadow-xs">
+          <div className="flex items-center gap-2 font-bold text-sm">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            PROJECT STATUS: Sponsor Withdrew the Project
+          </div>
+          <p className="text-xs text-amber-800 mt-1">
+            New work: <strong>STOPPED</strong> • Accepted Credits: <strong>PROTECTED</strong> • Escrow: <strong>UNDER ACCEPTANCE/REVIEW</strong>
+          </p>
+        </div>
+      )}
+
       {/* Tabs Header */}
-      <div className="border-b border-slate-200 mb-8">
-        <div className="flex space-x-8">
+      <div className="border-b border-slate-200 mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap space-x-4 sm:space-x-8">
           <button
             onClick={() => setActiveTab("overview")}
             className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
@@ -513,6 +631,23 @@ export default function ProjectDetailPage({
           >
             <FileText className="w-4 h-4" />
             Overview
+          </button>
+
+          <button
+            onClick={() => setActiveTab("work")}
+            className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
+              activeTab === "work"
+                ? "border-indigo-600 text-indigo-600"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <Coins className="w-4 h-4" />
+            Work & Credits
+            {contributions.length > 0 && (
+              <span className="px-1.5 py-0.2 bg-indigo-100 text-indigo-700 rounded-full text-[10px]">
+                {contributions.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -548,6 +683,23 @@ export default function ProjectDetailPage({
           </button>
 
           <button
+            onClick={() => setActiveTab("governance")}
+            className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
+              activeTab === "governance"
+                ? "border-indigo-600 text-indigo-600"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <Gavel className="w-4 h-4" />
+            Governance & Disputes
+            {disputes.filter((d) => d.status === "OPEN").length > 0 && (
+              <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded-full text-[10px]">
+                {disputes.filter((d) => d.status === "OPEN").length}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab("ledger")}
             className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
               activeTab === "ledger"
@@ -559,6 +711,14 @@ export default function ProjectDetailPage({
             Audit Ledger Chain
           </button>
         </div>
+
+        <Link
+          href={`/projects/${projectId}/rewards`}
+          className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold transition-colors shrink-0"
+        >
+          <Calculator className="w-3.5 h-3.5 text-emerald-600" />
+          Reward Provenance & Explanations →
+        </Link>
       </div>
 
       {/* TAB 1: OVERVIEW */}
@@ -997,6 +1157,91 @@ export default function ProjectDetailPage({
         </div>
       )}
 
+      {/* TAB: WORK & CREDITS */}
+      {activeTab === "work" && (
+        <div className="space-y-8">
+          {/* Top Banner Linking to Rewards */}
+          <div className="p-4 bg-gradient-to-r from-emerald-500/10 via-slate-50 to-indigo-500/10 border border-emerald-500/20 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-500 text-white rounded-xl shadow-xs">
+                <Calculator className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900">Deterministic Milestone Rewards Engine</h4>
+                <p className="text-xs text-slate-500">
+                  Reviewed contribution impact → Research Credits → Verified Proportional Reward Pool.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/projects/${projectId}/rewards`}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shrink-0 transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              Inspect Reward Breakdown & Provenance <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Milestones & Escrow */}
+          <EscrowMilestoneSection
+            milestones={dbMilestones.length > 0 ? dbMilestones : (charter?.milestones_json as any) || []}
+            projectId={projectId}
+            userRole={profile?.role || "student"}
+            isSponsor={isSponsor}
+            token={session?.access_token}
+            onRefresh={refreshM3Data}
+          />
+
+          {/* 2-column layout: Submission/Review vs Credits Balance */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              {/* Contribution Submission */}
+              <ContributionSubmissionCard
+                projectId={projectId}
+                projectStatus={project.status}
+                milestones={dbMilestones.length > 0 ? dbMilestones : (charter?.milestones_json as any) || []}
+                userName={profile?.display_name || user?.email || "Student"}
+                userRole={profile?.role || "student"}
+                token={session?.access_token}
+                onSubmitted={refreshM3Data}
+              />
+
+              {/* Contribution Peer Review */}
+              <ContributionReviewCard
+                contributions={contributions}
+                currentUserId={user?.id || ""}
+                userRole={profile?.role || "student"}
+                token={session?.access_token}
+                onReviewed={refreshM3Data}
+              />
+            </div>
+
+            <div className="space-y-6">
+              {/* User Research Credits */}
+              <ResearchCreditsDisplay
+                totalCredits={userCredits.totalCredits}
+                items={userCredits.items}
+                userName={profile?.display_name || "You"}
+              />
+
+              {/* Security Invariants Box */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs text-slate-600">
+                <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  M3 Focus-C Security Guarantees
+                </span>
+                <ul className="space-y-1 list-disc list-inside text-[11px] text-slate-500">
+                  <li>Contributions attributed strictly to authenticated user session</li>
+                  <li>SHA-256 content hash generated server-side</li>
+                  <li>Credits derived strictly from reviewed impact (Max 5)</li>
+                  <li>Escrow requires sponsor funding before work can release</li>
+                  <li>Rewards calculated via deterministic arithmetic (No AI)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TAB 2: CHARTER (v1) & ACCEPTANCE */}
       {activeTab === "charter" && (
         <div className="space-y-8">
@@ -1290,6 +1535,43 @@ export default function ProjectDetailPage({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB: GOVERNANCE & DISPUTES */}
+      {activeTab === "governance" && (
+        <div className="space-y-8">
+          {/* Sponsor Withdrawal Abandonment Protection */}
+          <SponsorWithdrawalCard
+            projectId={projectId}
+            projectStatus={project.status}
+            isSponsor={isSponsor}
+            userRole={profile?.role || "student"}
+            token={session?.access_token}
+            onWithdrawn={refreshM3Data}
+          />
+
+          {/* Disputes Section */}
+          <DisputesSection
+            projectId={projectId}
+            disputes={disputes}
+            userRole={profile?.role || "student"}
+            token={session?.access_token}
+            onRefresh={refreshM3Data}
+          />
+
+          {/* Non-Monetary Project Credential Viewer */}
+          <CredentialViewerCard
+            projectId={projectId}
+            projectTitle={project.title}
+            isKnowledgeSharing={project.engagement_model !== "FUNDED"}
+            credentials={credentials}
+            userRole={profile?.role || "student"}
+            isSponsor={isSponsor}
+            members={members}
+            token={session?.access_token}
+            onIssued={refreshM3Data}
+          />
         </div>
       )}
 
