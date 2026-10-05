@@ -67,6 +67,10 @@ npm run typecheck
 npm run build
 npm run test:m0
 npm run test:ai-routing
+npm run test:m1
+npm run test:m2
+npm run test:m3
+npm run test:m4
 ```
 
 ## Seed/demo

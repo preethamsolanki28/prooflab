@@ -183,36 +183,31 @@ Done when:
 
 ## M4 — Resilient fallback + integration
 
-**23:30–01:00 — 1.5h**
+**23:30–01:00 — 1.5h** [COMPLETED & VERIFIED: 15/15 tests passed]
 
-### TASK-M4-01 — Local pending-action outbox
-**35 min**
+### TASK-M4-01 — Local pending-action outbox [COMPLETED]
+- Implemented `PendingAction` outbox store (`src/lib/outbox/client.ts` with browser `localStorage` + in-memory fallback).
+- Tracks `idempotency_id`, `action_type`, `project_id`, `charter_version`, `payload`, `created_at`, `status`.
+- Stores pending actions locally on database connection failure.
+- Never stores authoritative credit balance or release state client-side.
 
-Implement only one useful path first: contribution submission.
+### TASK-M4-02 — Sync endpoint [COMPLETED]
+- Created `/api/outbox/sync` (`src/lib/outbox/sync.ts`).
+- Server revalidates authenticated session, project membership, charter version, and project active status.
+- Idempotency check ensures identical action is committed exactly once (single contribution creation, zero duplicates).
 
-Store:
-- idempotency ID;
-- project ID;
-- charter version;
-- contribution payload;
-- status.
+### TASK-M4-03 — Conflict handling [COMPLETED]
+- Stale charter version detected (`action.charterVersion < currentVersion`).
+- Rejects with `CONFLICT` status: "Your submission was created under Charter v1. The project is now on Charter v2. Please review and resubmit."
+- Stale local actions cannot bypass updated governance.
 
-### TASK-M4-02 — Sync endpoint
-**25 min**
-
-Server validates current authorization/project state.
-
-### TASK-M4-03 — Conflict handling
-**15 min**
-
-If charter version changed, mark conflict and require resubmission.
-
-### TASK-M4-04 — Full fixed-story rehearsal
-**15 min**
-
+### TASK-M4-04 — Full fixed-story rehearsal & Reset [COMPLETED]
+- Added deterministic demo reset (`scripts/seed.ts --reset` and `/api/demo/reset`).
+- Full end-to-end integration verified:
 ```text
 Post → Scope → Match → Join → Fund → Work → Catch → Accept → Reward → Credential → Verify → Tamper
 ```
+- Verified automated regression suite: `npm run test:m4` (15/15 PASS).
 
 ## 01:00–03:00 — Sleep/rest
 

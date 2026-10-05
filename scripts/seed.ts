@@ -2,12 +2,19 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 dotenv.config({ path: ".env" });
 
-import { seedDemoData } from "../src/lib/seed";
+import { seedDemoData, resetDemoData } from "../src/lib/seed";
 
 async function main() {
-  console.log("Seeding canonical Gardenia 2K26 demo projects...");
-  const result = await seedDemoData();
-  console.log("Result:", result);
+  const isReset = process.argv.includes("--reset");
+  if (isReset) {
+    console.log("Resetting canonical Gardenia 2K26 demo environment...");
+    const result = await resetDemoData();
+    console.log("Reset result:", result);
+  } else {
+    console.log("Seeding canonical Gardenia 2K26 demo projects...");
+    const result = await seedDemoData();
+    console.log("Result:", result);
+  }
 }
 
 main().catch((err) => {

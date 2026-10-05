@@ -308,3 +308,96 @@ export async function seedDemoData() {
 
   return { status: "SEEDED", fundedProjectId: fundedProjId, nonMonetaryProjectId: nonMonetaryProjId };
 }
+
+/**
+ * Resets the canonical Gardenia 2K26 demo environment back to the exact initial baseline:
+ * - Funded project: status active, escrow UNFUNDED, milestones open, no accepted contributions, charter v1 unaccepted by Arjun.
+ * - Non-monetary project: status active, zero payouts, credentials cleared.
+ * - Personas: verified, profiles with correct skill vectors and conflict-of-interest flags.
+ */
+export async function resetDemoData() {
+  const adminClient = createAdminClient();
+
+  // 1. Ensure baseline seeding exists
+  const seedResult = await seedDemoData();
+  const { fundedProjectId, nonMonetaryProjectId } = seedResult;
+
+  if (fundedProjectId) {
+    // Reset project status to active
+    await adminClient
+      .from("projects")
+      .update({ status: "active" })
+      .eq("id", fundedProjectId);
+
+    // Clear dynamic demo records
+    await adminClient.from("disputes").delete().eq("project_id", fundedProjectId);
+    await adminClient.from("credentials").delete().eq("project_id", fundedProjectId);
+    await adminClient.from("payouts").delete().eq("project_id", fundedProjectId);
+    await adminClient.from("contributions").delete().eq("project_id", fundedProjectId);
+    await adminClient.from("escrows").delete().eq("project_id", fundedProjectId);
+
+    // Reset milestones
+    const { data: milestones } = await adminClient
+      .from("milestones")
+      .select("id")
+      .eq("project_id", fundedProjectId);
+
+    for (const m of milestones || []) {
+      await adminClient
+        .from("milestones")
+        .update({ status: "open" })
+        .eq("id", m.id);
+
+      await adminClient.from("escrows").insert({
+        project_id: fundedProjectId,
+        milestone_id: m.id,
+        amount: 50000,
+        status: "UNFUNDED",
+      });
+    }
+
+    // Reset charter acceptances & membership (keep sponsor)
+    const { data: charters } = await adminClient
+      .from("charters")
+      .select("id")
+      .eq("project_id", fundedProjectId);
+
+    for (const c of charters || []) {
+      await adminClient.from("charter_acceptances").delete().eq("charter_id", c.id);
+    }
+
+    // Remove student members so Arjun can demonstrate accepting Charter in live demo
+    const { data: sponsorProfile } = await adminClient
+      .from("profiles")
+      .select("id")
+      .eq("role", "sponsor")
+      .limit(1);
+
+    if (sponsorProfile && sponsorProfile.length > 0) {
+      await adminClient
+        .from("project_members")
+        .delete()
+        .eq("project_id", fundedProjectId)
+        .neq("user_id", sponsorProfile[0].id);
+    }
+  }
+
+  if (nonMonetaryProjectId) {
+    await adminClient
+      .from("projects")
+      .update({ status: "active" })
+      .eq("id", nonMonetaryProjectId);
+
+    await adminClient.from("credentials").delete().eq("project_id", nonMonetaryProjectId);
+    await adminClient.from("disputes").delete().eq("project_id", nonMonetaryProjectId);
+    await adminClient.from("payouts").delete().eq("project_id", nonMonetaryProjectId);
+    await adminClient.from("contributions").delete().eq("project_id", nonMonetaryProjectId);
+  }
+
+  return {
+    status: "RESET_COMPLETE",
+    fundedProjectId,
+    nonMonetaryProjectId,
+    message: "Canonical demo environment successfully restored to initial baseline.",
+  };
+}

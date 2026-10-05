@@ -13,7 +13,9 @@
     "test:m1": "tsx scripts/test-m1.ts",
     "test:m2": "tsx scripts/test-m2.ts",
     "test:m3": "tsx scripts/test-m3.ts",
-    "seed": "tsx scripts/seed.ts"
+    "test:m4": "tsx scripts/test-m4.ts",
+    "seed": "tsx scripts/seed.ts",
+    "seed:reset": "tsx scripts/seed.ts --reset"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
