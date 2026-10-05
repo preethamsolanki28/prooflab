@@ -20,6 +20,14 @@ import {
   ExternalLink,
   ChevronRight,
   Fingerprint,
+  Sparkles,
+  Users,
+  Bot,
+  Send,
+  Terminal,
+  Check,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 interface ProjectDetailData {
@@ -116,6 +124,28 @@ export default function ProjectDetailPage({
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any | null>(null);
   const [verifyingLedger, setVerifyingLedger] = useState(false);
+
+  // M2 AI Scoping State
+  const [scopingLoading, setScopingLoading] = useState(false);
+  const [scopingInfo, setScopingInfo] = useState<{
+    aiProvider: string;
+    routeBadge: string;
+    fallbackUsed: boolean;
+    status: string;
+    latencyMs?: number;
+  } | null>(null);
+
+  // M2 Candidate Matching State
+  const [matchingLoading, setMatchingLoading] = useState(false);
+  const [matches, setMatches] = useState<any[] | null>(null);
+  const [matchRoleFilter, setMatchRoleFilter] = useState<"all" | "student" | "expert">("all");
+
+  // M2 ResearchCopilot State
+  const [copilotTask, setCopilotTask] = useState("");
+  const [copilotClassification, setCopilotClassification] = useState<"PUBLIC" | "CONFIDENTIAL">("PUBLIC");
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotResult, setCopilotResult] = useState<any | null>(null);
+  const [copilotError, setCopilotError] = useState<string | null>(null);
 
   // Fetch Project Metadata
   const fetchProject = async () => {
@@ -285,6 +315,82 @@ export default function ProjectDetailPage({
       setError(err.message || "An unexpected error occurred");
     } finally {
       setAcceptingCharter(false);
+    }
+  };
+
+  // M2: AI Scoping
+  const handleAiScope = async () => {
+    try {
+      setScopingLoading(true);
+      setError(null);
+      const res = await fetch(`/api/projects/${projectId}/scope`, { method: "POST" });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Scoping failed");
+      setScopingInfo({
+        aiProvider: resData.aiProvider,
+        routeBadge: resData.routeBadge,
+        fallbackUsed: resData.fallbackUsed,
+        status: resData.status,
+        latencyMs: resData.latencyMs,
+      });
+      await fetchProject();
+    } catch (err: any) {
+      setError(err.message || "Failed to execute AI scoping");
+    } finally {
+      setScopingLoading(false);
+    }
+  };
+
+  // M2: Candidate Matching
+  const handleFindMatches = async (roleFilter?: "all" | "student" | "expert") => {
+    try {
+      setMatchingLoading(true);
+      const rf = roleFilter || matchRoleFilter;
+      const url = `/api/projects/${projectId}/match${rf !== "all" ? `?role=${rf}` : ""}`;
+      const res = await fetch(url);
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Matching failed");
+      setMatches(resData.matches || []);
+    } catch (err: any) {
+      setError(err.message || "Failed to find candidate matches");
+    } finally {
+      setMatchingLoading(false);
+    }
+  };
+
+  // M2: ResearchCopilot
+  const handleAskCopilot = async (customPrompt?: string, customClassification?: "PUBLIC" | "CONFIDENTIAL") => {
+    const promptToSend = customPrompt || copilotTask;
+    const classToSend = customClassification || copilotClassification;
+    if (!promptToSend.trim()) return;
+    if (!session?.access_token) {
+      setCopilotError("Please sign in to ask ResearchCopilot.");
+      return;
+    }
+
+    try {
+      setCopilotLoading(true);
+      setCopilotError(null);
+      const res = await fetch("/api/copilot/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          projectId,
+          task: promptToSend,
+          classification: classToSend,
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "ResearchCopilot execution failed");
+      setCopilotResult(resData);
+    } catch (err: any) {
+      setCopilotError(err.message || "Copilot error");
+    } finally {
+      setCopilotLoading(false);
     }
   };
 
@@ -461,10 +567,50 @@ export default function ProjectDetailPage({
           <div className="lg:col-span-2 space-y-6">
             {/* Milestones Card */}
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
-              <h2 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Coins className="w-4 h-4 text-indigo-600" />
-                Charter Milestones & Escrow Allocation
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-indigo-600" />
+                    Charter Milestones & Escrow Allocation
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Structured milestone contracts with verified deliverables and required technical skills.
+                  </p>
+                </div>
+
+                {/* AI Scope Project Button */}
+                <button
+                  onClick={handleAiScope}
+                  disabled={scopingLoading}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors shrink-0"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${scopingLoading ? "animate-spin" : ""}`} />
+                  {scopingLoading ? "Generating 2 Milestones..." : "AI Scope Project"}
+                </button>
+              </div>
+
+              {/* Scoping Info Badge Strip */}
+              {scopingInfo && (
+                <div className="mb-4 p-3 bg-indigo-50/70 border border-indigo-200 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-indigo-900">AI Scoping Result:</span>
+                    <span className="font-mono px-2 py-0.5 rounded text-[11px] bg-white border border-indigo-200 text-indigo-700 font-semibold">
+                      {scopingInfo.routeBadge}
+                    </span>
+                    {scopingInfo.fallbackUsed && (
+                      <span className="px-2 py-0.5 rounded text-[11px] bg-amber-100 text-amber-800 border border-amber-300 font-semibold flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Fallback Used
+                      </span>
+                    )}
+                  </div>
+                  {scopingInfo.latencyMs !== undefined && (
+                    <span className="text-indigo-600 font-mono text-[11px]">
+                      Latency: {scopingInfo.latencyMs}ms
+                    </span>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-4">
                 {charter?.milestones_json?.map((m: any, idx: number) => (
@@ -481,8 +627,16 @@ export default function ProjectDetailPage({
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 mb-3">{m.description}</p>
+                    {m.acceptance_criteria && Array.isArray(m.acceptance_criteria) && m.acceptance_criteria.length > 0 && (
+                      <div className="mb-2.5 pl-3 border-l-2 border-indigo-200 space-y-0.5 text-xs text-slate-600">
+                        <span className="font-semibold text-slate-700 block text-[11px] uppercase tracking-wider">Criteria:</span>
+                        {m.acceptance_criteria.map((c: string, cIdx: number) => (
+                          <div key={cIdx} className="text-[11px]">• {c}</div>
+                        ))}
+                      </div>
+                    )}
                     {m.required_skills && (
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-200/60">
                         <span className="text-xs text-slate-400 font-medium">Skills:</span>
                         {m.required_skills.map((skill: string, sIdx: number) => (
                           <span
@@ -497,6 +651,285 @@ export default function ProjectDetailPage({
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* M2: Candidate Matching Section */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-600" />
+                    Deterministic Candidate Matching & Eligibility
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Transparent rule-based scoring based on skill overlap, verification, and conflict-of-interest exclusion.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="inline-flex p-0.5 bg-slate-100 rounded-lg text-xs font-medium text-slate-600">
+                    <button
+                      onClick={() => {
+                        setMatchRoleFilter("all");
+                        handleFindMatches("all");
+                      }}
+                      className={`px-2 py-1 rounded-md transition-colors ${matchRoleFilter === "all" ? "bg-white text-indigo-700 font-bold shadow-2xs" : ""}`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMatchRoleFilter("student");
+                        handleFindMatches("student");
+                      }}
+                      className={`px-2 py-1 rounded-md transition-colors ${matchRoleFilter === "student" ? "bg-white text-indigo-700 font-bold shadow-2xs" : ""}`}
+                    >
+                      Students
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMatchRoleFilter("expert");
+                        handleFindMatches("expert");
+                      }}
+                      className={`px-2 py-1 rounded-md transition-colors ${matchRoleFilter === "expert" ? "bg-white text-indigo-700 font-bold shadow-2xs" : ""}`}
+                    >
+                      Experts
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => handleFindMatches()}
+                    disabled={matchingLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors"
+                  >
+                    <Users className={`w-3.5 h-3.5 ${matchingLoading ? "animate-spin" : ""}`} />
+                    {matchingLoading ? "Matching..." : "Find Matches"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Match Cards List */}
+              {matchingLoading ? (
+                <div className="py-8 text-center text-xs text-slate-500">
+                  <RefreshCw className="w-5 h-5 text-indigo-600 animate-spin mx-auto mb-2" />
+                  Evaluating candidate skill profiles and conflict filters...
+                </div>
+              ) : matches && matches.length > 0 ? (
+                <div className="space-y-3">
+                  {matches.map((m) => (
+                    <div
+                      key={m.candidateId}
+                      className={`p-4 rounded-xl border transition-all ${
+                        m.status === "EXCLUDED"
+                          ? "bg-rose-50/40 border-rose-200"
+                          : "bg-slate-50 border-slate-200 hover:border-indigo-300"
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-slate-900">{m.displayName}</h3>
+                            <span className="px-2 py-0.5 text-[11px] font-semibold bg-white border border-slate-200 text-slate-700 rounded capitalize">
+                              {m.role}
+                            </span>
+                            {m.status === "EXCLUDED" ? (
+                              <span className="px-2 py-0.5 text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-300 rounded flex items-center gap-1">
+                                <XCircle className="w-3 h-3" />
+                                EXCLUDED: {m.exclusionReason || "Conflict"}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 rounded flex items-center gap-1">
+                                <Check className="w-3 h-3" />
+                                ELIGIBLE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Match Score Badge */}
+                        <div className="text-right shrink-0">
+                          <span className={`text-base font-black font-mono ${m.status === "EXCLUDED" ? "text-slate-400" : "text-indigo-600"}`}>
+                            {m.matchScore}%
+                          </span>
+                          <span className="text-[10px] text-slate-400 block uppercase font-medium">Match Score</span>
+                        </div>
+                      </div>
+
+                      {/* Explanation bullets */}
+                      <p className="text-xs text-slate-600 whitespace-pre-wrap mb-3 leading-relaxed">
+                        {m.explanation}
+                      </p>
+
+                      {/* Matching and Missing Skills */}
+                      {m.status === "ELIGIBLE" && (
+                        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/70 text-xs">
+                          <span className="text-[11px] text-slate-400 font-medium">Matched Skills:</span>
+                          {m.matchingSkills.map((s: string, sIdx: number) => (
+                            <span key={sIdx} className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium text-[11px]">
+                              ✓ {s}
+                            </span>
+                          ))}
+                          {m.missingSkills.length > 0 && (
+                            <>
+                              <span className="text-[11px] text-slate-400 font-medium ml-2">Missing:</span>
+                              {m.missingSkills.map((s: string, sIdx: number) => (
+                                <span key={sIdx} className="px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 text-[11px]">
+                                  {s}
+                                </span>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-xs text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                  Click <strong>Find Matches</strong> to rank eligible researchers and exclude conflicted experts.
+                </div>
+              )}
+            </div>
+
+            {/* M2: ResearchCopilot Section */}
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+              <div className="flex items-center justify-between gap-4 mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-2xs">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">
+                      ResearchCopilot (Project-Scoped Assistant)
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Scoped agent with 2 tools: <code className="font-mono text-indigo-700">get_project_context</code> and <code className="font-mono text-indigo-700">draft_contribution_summary</code>.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Privacy Badge / Selector */}
+                <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg text-xs">
+                  <button
+                    onClick={() => setCopilotClassification("PUBLIC")}
+                    className={`px-2.5 py-1 rounded-md font-semibold text-[11px] transition-colors flex items-center gap-1 ${
+                      copilotClassification === "PUBLIC"
+                        ? "bg-white text-emerald-700 shadow-2xs border border-emerald-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Globe className="w-3 h-3 text-emerald-600" />
+                    Public (Cloud)
+                  </button>
+                  <button
+                    onClick={() => setCopilotClassification("CONFIDENTIAL")}
+                    className={`px-2.5 py-1 rounded-md font-semibold text-[11px] transition-colors flex items-center gap-1 ${
+                      copilotClassification === "CONFIDENTIAL"
+                        ? "bg-white text-rose-700 shadow-2xs border border-rose-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Lock className="w-3 h-3 text-rose-600" />
+                    Confidential (Local Only)
+                  </button>
+                </div>
+              </div>
+
+              {/* Sample Prompts Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                <span className="text-[11px] text-slate-400 font-medium">Quick Prompts:</span>
+                <button
+                  onClick={() => {
+                    setCopilotTask("What should I work on for this milestone?");
+                    setCopilotClassification("PUBLIC");
+                    handleAskCopilot("What should I work on for this milestone?", "PUBLIC");
+                  }}
+                  className="px-2 py-0.5 text-[11px] bg-slate-50 text-indigo-700 border border-indigo-200 rounded hover:bg-indigo-50 font-medium"
+                >
+                  "What should I work on for this milestone?"
+                </button>
+                <button
+                  onClick={() => {
+                    setCopilotTask("Draft summary: Implemented INT8 quantization for MobileNetV4 with 92% validation accuracy on fundus images.");
+                    setCopilotClassification("PUBLIC");
+                    handleAskCopilot("Draft summary: Implemented INT8 quantization for MobileNetV4 with 92% validation accuracy on fundus images.", "PUBLIC");
+                  }}
+                  className="px-2 py-0.5 text-[11px] bg-slate-50 text-indigo-700 border border-indigo-200 rounded hover:bg-indigo-50 font-medium"
+                >
+                  "Draft summary: INT8 quantization..."
+                </button>
+                <button
+                  onClick={() => {
+                    setCopilotTask("Confidential question: How should we partition the private patient cohort dataset on edge storage?");
+                    setCopilotClassification("CONFIDENTIAL");
+                    handleAskCopilot("Confidential question: How should we partition the private patient cohort dataset on edge storage?", "CONFIDENTIAL");
+                  }}
+                  className="px-2 py-0.5 text-[11px] bg-rose-50 text-rose-700 border border-rose-200 rounded hover:bg-rose-100 font-medium"
+                >
+                  "Confidential question: Patient cohort..."
+                </button>
+              </div>
+
+              {/* Chat Input */}
+              <div className="relative mb-4">
+                <textarea
+                  rows={2}
+                  value={copilotTask}
+                  onChange={(e) => setCopilotTask(e.target.value)}
+                  placeholder="Ask ResearchCopilot about milestone tasks or ask to draft a contribution summary..."
+                  className="w-full pl-3 pr-24 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                />
+                <button
+                  onClick={() => handleAskCopilot()}
+                  disabled={copilotLoading || !copilotTask.trim()}
+                  className="absolute right-2.5 bottom-3 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-md shadow-2xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Send className={`w-3 h-3 ${copilotLoading ? "animate-spin" : ""}`} />
+                  {copilotLoading ? "Running..." : "Ask"}
+                </button>
+              </div>
+
+              {copilotError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 mb-4">
+                  {copilotError}
+                </div>
+              )}
+
+              {/* Copilot Response Card */}
+              {copilotResult && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  {/* Response Text */}
+                  <div className="prose prose-xs text-slate-800 leading-relaxed font-sans bg-white p-4 rounded-lg border border-slate-200 shadow-2xs whitespace-pre-wrap">
+                    {copilotResult.output}
+                  </div>
+
+                  {/* Metadata and Attribution Strip */}
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-lg flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-[11px] text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-700">AI Provider:</span>
+                      <span className={`font-mono font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                        copilotResult.aiProvider === "local" ? "bg-rose-100 text-rose-800 border border-rose-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      }`}>
+                        {copilotResult.aiProvider.toUpperCase()} AI ({copilotResult.dataClassification})
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="font-semibold text-slate-700">Human Owner:</span>{" "}
+                      <strong className="text-indigo-700 font-bold">{copilotResult.humanOwner?.name}</strong>
+                    </div>
+
+                    <div>
+                      <span className="font-semibold text-slate-700">Project:</span>{" "}
+                      <span className="text-slate-600 truncate max-w-[140px] inline-block align-bottom">{project.title}</span>
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      Tool: {copilotResult.toolUsed}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* AI Policy & Boundary */}
