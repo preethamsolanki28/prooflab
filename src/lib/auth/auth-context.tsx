@@ -12,6 +12,7 @@ export interface UserProfile {
   role: UserRole;
   skills: string[];
   verified: boolean;
+  conflict_of_interest?: boolean;
   created_at: string;
 }
 
@@ -36,21 +37,35 @@ export const SYNTHETIC_ACCOUNTS: SyntheticAccount[] = [
     password: "Password123!",
     role: "student",
     label: "Arjun (Student A)",
-    desc: "Primary student researcher who accepts charter",
+    desc: "Primary student researcher (CV, PyTorch, Edge ML)",
   },
   {
     email: "student_b@gardenia.test",
     password: "Password123!",
     role: "student",
     label: "Priya (Student B)",
-    desc: "Unaccepted non-member testing access barriers",
+    desc: "Web standards & accessibility researcher",
+  },
+  {
+    email: "student_c@gardenia.test",
+    password: "Password123!",
+    role: "student",
+    label: "Kavita (Student C)",
+    desc: "Medical imaging & biostatistics candidate",
   },
   {
     email: "expert@gardenia.test",
     password: "Password123!",
     role: "expert",
     label: "Dr. Ananya (Expert)",
-    desc: "Domain expert evaluating contributions",
+    desc: "Independent clinical validation expert (eligible)",
+  },
+  {
+    email: "conflict_expert@gardenia.test",
+    password: "Password123!",
+    role: "expert",
+    label: "Dr. Conflict (Conflicted)",
+    desc: "Domain expert with flagged conflict of interest",
   },
   {
     email: "admin@gardenia.test",

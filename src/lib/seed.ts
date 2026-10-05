@@ -1,17 +1,106 @@
 import { createAdminClient } from "./supabase/server";
 import { appendLedgerEntry } from "./ledger";
 
+export const SEED_USERS = [
+  {
+    email: "sponsor@gardenia.test",
+    password: "Password123!",
+    role: "sponsor",
+    displayName: "Dr. Ramesh (Sponsor)",
+    skills: ["Project Management", "Biomedical Engineering"],
+    conflict: false,
+  },
+  {
+    email: "student_a@gardenia.test",
+    password: "Password123!",
+    role: "student",
+    displayName: "Arjun (Student A)",
+    skills: ["Computer Vision", "PyTorch", "Python", "Edge ML"],
+    conflict: false,
+  },
+  {
+    email: "student_b@gardenia.test",
+    password: "Password123!",
+    role: "student",
+    displayName: "Priya (Student B)",
+    skills: ["Web Standards", "Data Analysis", "TypeScript"],
+    conflict: false,
+  },
+  {
+    email: "student_c@gardenia.test",
+    password: "Password123!",
+    role: "student",
+    displayName: "Kavita (Student C)",
+    skills: ["Medical Imaging", "Model Evaluation", "Biostatistics"],
+    conflict: false,
+  },
+  {
+    email: "expert@gardenia.test",
+    password: "Password123!",
+    role: "expert",
+    displayName: "Dr. Ananya (Domain Expert)",
+    skills: ["Medical Imaging", "Clinical Validation", "Biostatistics"],
+    conflict: false,
+  },
+  {
+    email: "conflict_expert@gardenia.test",
+    password: "Password123!",
+    role: "expert",
+    displayName: "Dr. Conflict (Conflicted Expert)",
+    skills: ["Computer Vision", "Medical Imaging", "Edge ML"],
+    conflict: true,
+  },
+  {
+    email: "admin@gardenia.test",
+    password: "Password123!",
+    role: "admin",
+    displayName: "System Admin",
+    skills: ["Audit", "Governance"],
+    conflict: false,
+  },
+];
+
 export async function seedDemoData() {
   const adminClient = createAdminClient();
 
-  // 1. Ensure Sponsor user exists
-  const { data: users, error: listErr } = await adminClient.auth.admin.listUsers();
+  // 1. Ensure all synthetic personas exist in auth.users and public.profiles
+  const { data: userList, error: listErr } = await adminClient.auth.admin.listUsers();
   if (listErr) throw listErr;
 
-  const sponsorUser = users.users.find((u) => u.email === "sponsor@gardenia.test");
-  if (!sponsorUser) {
-    throw new Error("Sponsor user sponsor@gardenia.test not found. Run test:m0 or initialize users first.");
+  let sponsorUserId = "";
+
+  for (const u of SEED_USERS) {
+    let authUser = userList.users.find((existing) => existing.email === u.email);
+    if (!authUser) {
+      const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+        email: u.email,
+        password: u.password,
+        email_confirm: true,
+        user_metadata: { role: u.role, display_name: u.displayName },
+      });
+      if (createErr) throw createErr;
+      authUser = created.user;
+    }
+
+    if (u.email === "sponsor@gardenia.test") {
+      sponsorUserId = authUser.id;
+    }
+
+    // Upsert into public.profiles with skills & conflict flag
+    await adminClient.from("profiles").upsert(
+      {
+        id: authUser.id,
+        display_name: u.displayName,
+        role: u.role,
+        skills: u.skills,
+        verified: true,
+        conflict_of_interest: u.conflict,
+      },
+      { onConflict: "id" }
+    );
   }
+
+  const sponsorUser = { id: sponsorUserId };
 
   // 2. Check if canonical funded project exists
   const { data: existingFunded } = await adminClient
