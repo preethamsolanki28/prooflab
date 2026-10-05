@@ -451,7 +451,7 @@ export default function ContributionSubmissionCard({
                       : "bg-white text-slate-600 border-slate-300"
                   }`}
                 >
-                  Cloud Gemini
+                  Cloud AI (OpenRouter)
                 </button>
               </div>
             </div>

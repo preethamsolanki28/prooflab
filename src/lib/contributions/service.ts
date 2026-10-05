@@ -15,7 +15,7 @@ export interface SubmitContributionParams {
   summary: string;
   contributionType: "code" | "dataset" | "benchmark" | "paper" | "review" | "analysis";
   aiAssisted: boolean;
-  aiProvider: "cloud" | "local" | "none" | "gemini";
+  aiProvider: "cloud" | "local" | "none" | "openrouter" | "gemini";
   idempotencyId?: string;
 }
 

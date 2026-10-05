@@ -9,7 +9,7 @@ import {
   AiRequestOptions,
   RouteBadge,
 } from "./types";
-import { callGeminiCloud } from "./gemini";
+import { callOpenRouterCloud } from "./openrouter";
 import { callLocalModel } from "./local";
 
 /**
@@ -18,7 +18,7 @@ import { callLocalModel } from "./local";
  * application-derived data classification (never inferred by a cloud model).
  *
  * Rules:
- * - PUBLIC: Cloud Gemini is allowed.
+ * - PUBLIC: Cloud OpenRouter is allowed.
  * - CONFIDENTIAL: Local model only.
  * - MIXED: Local model only.
  * - UNKNOWN: Local model only.
@@ -29,7 +29,7 @@ export function resolveRoutingPolicy(
   if (classification === "PUBLIC") {
     return {
       classification,
-      allowedProvider: "gemini",
+      allowedProvider: "openrouter",
       cloudAllowed: true,
       routeBadge: "PUBLIC DATA → CLOUD AI",
     };
@@ -55,19 +55,19 @@ export async function routeAiRequest(
   const startTime = Date.now();
   const decision = resolveRoutingPolicy(options.classification);
 
-  // 1. PUBLIC ROUTE -> Cloud Gemini
-  if (decision.allowedProvider === "gemini" && decision.cloudAllowed) {
+  // 1. PUBLIC ROUTE -> Cloud OpenRouter
+  if (decision.allowedProvider === "openrouter" && decision.cloudAllowed) {
     try {
-      const cloudRes = await callGeminiCloud(options.prompt, options.classification, {
-        apiKey: options.geminiApiKey,
-        model: options.geminiModel,
+      const cloudRes = await callOpenRouterCloud(options.prompt, options.classification, {
+        apiKey: options.openrouterApiKey || options.geminiApiKey,
+        model: options.openrouterModel || options.geminiModel,
         systemPrompt: options.systemPrompt,
       });
 
       const latencyMs = Date.now() - startTime;
 
       return {
-        provider: "gemini",
+        provider: "openrouter",
         classification: options.classification,
         output: cloudRes.output,
         status: cloudRes.fallbackUsed ? "CLOUD_FALLBACK_USED" : "SUCCESS",
@@ -80,14 +80,14 @@ export async function routeAiRequest(
     } catch (err: any) {
       const latencyMs = Date.now() - startTime;
       return {
-        provider: "gemini",
+        provider: "openrouter",
         classification: options.classification,
-        output: "Cloud AI unavailable. Please retry or consult cached project specifications.",
+        output: "Cloud AI unavailable. Using saved public-task result.",
         status: "ERROR",
         routeBadge: decision.routeBadge,
         telemetrySafe: true,
         latencyMs,
-        model: options.geminiModel || "gemini-3.8-flash",
+        model: options.openrouterModel || process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
         error: err.message,
       };
     }

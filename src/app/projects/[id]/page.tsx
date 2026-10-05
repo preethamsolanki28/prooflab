@@ -1101,10 +1101,10 @@ export default function ProjectDetailPage({
               <p className="text-xs text-slate-600 leading-relaxed mb-4">
                 {isConfidential
                   ? "This project is classified as CONFIDENTIAL. In accordance with the Two-Model Privacy Architecture, all queries containing or analyzing private brief data are strictly routed to local, on-device AI runtimes. Under no circumstances is confidential data transmitted to public cloud LLMs."
-                  : "This project is classified as PUBLIC DATA. Queries may leverage cloud LLM API capabilities (Gemini 3.8 Flash) for accelerated scoping and automated checks."}
+                  : "This project is classified as PUBLIC DATA. Queries may leverage cloud LLM API capabilities (OpenRouter GPT-4o-mini) for accelerated scoping and automated checks."}
               </p>
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700">
-                AI Policy: {charter?.permitted_ai_tools || (isConfidential ? "Local model runtimes (Ollama/on-device) only." : "Cloud Gemini & Local models.")}
+                AI Policy: {charter?.permitted_ai_tools || (isConfidential ? "Local model runtimes (Ollama/on-device) only." : "Cloud OpenRouter (GPT-4o-mini) & Local models.")}
               </div>
             </div>
           </div>
@@ -1346,7 +1346,7 @@ export default function ProjectDetailPage({
                     6. Permitted AI Tools
                   </h3>
                   <p className="text-xs text-slate-600">
-                    {charter?.permitted_ai_tools || (isConfidential ? "Local model runtimes (Ollama/on-device) only." : "Cloud Gemini & Local models.")}
+                    {charter?.permitted_ai_tools || (isConfidential ? "Local model runtimes (Ollama/on-device) only." : "Cloud OpenRouter (GPT-4o-mini) & Local models.")}
                   </p>
                 </div>
               </div>

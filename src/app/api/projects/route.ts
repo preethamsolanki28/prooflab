@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
             : "Public project data; cloud LLM allowed."),
         permitted_ai_tools:
           permitted_ai_tools ||
-          (data_sensitivity === "confidential" ? "Local models only" : "Gemini cloud API & local models"),
+          (data_sensitivity === "confidential" ? "Local models only" : "OpenRouter cloud API & local models"),
         credit_reward_terms:
           credit_reward_terms || "Proportional reward/credit distribution based on human review.",
         sponsor_withdrawal_terms:

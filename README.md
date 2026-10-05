@@ -16,7 +16,7 @@ Focus area: **C — Fair Rewards & Governance**.
 
 ## Why two LLMs
 
-**Public data → cloud Gemini.**
+**Public data → cloud OpenRouter (openai/gpt-4o-mini).**
 
 **Confidential/mixed/unknown data → local model runtime.**
 
@@ -28,8 +28,8 @@ For the Gardenia final demo, the safest setup is:
 
 ```text
 Local Next.js
-   ├── Local AI runtime for confidential data
-   ├── Cloud Gemini for public data
+   ├── Local AI runtime for confidential data (Ollama)
+   ├── Cloud OpenRouter (GPT-4o-mini) for public data
    └── Supabase cloud database
 ```
 
@@ -47,7 +47,8 @@ Create `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-GEMINI_API_KEY=
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openai/gpt-4o-mini
 LOCAL_LLM_BASE_URL=http://localhost:11434
 LOCAL_LLM_MODEL=<pre-tested-local-model>
 ```

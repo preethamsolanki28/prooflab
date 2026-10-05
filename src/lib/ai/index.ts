@@ -1,4 +1,4 @@
 export * from "./types";
 export * from "./router";
-export * from "./gemini";
+export * from "./openrouter";
 export * from "./local";

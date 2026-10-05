@@ -118,7 +118,7 @@ export function parseScopingJson(rawOutput: string): unknown | null {
 
 /**
  * Executes AI Project Scoping respecting data privacy routing:
- * - Public data -> Cloud Gemini
+ * - Public data -> Cloud OpenRouter
  * - Confidential/Mixed/Unknown -> Local Ollama (fail-closed)
  * - Validates output with Zod
  * - Falls back safely if LLM returns invalid JSON or errors out
@@ -188,7 +188,7 @@ Generate the 2 scoped milestones in the required JSON format.`;
     };
   }
 
-  // If Gemini or Local returned malformed JSON or error, safely use deterministic fallback
+  // If OpenRouter or Local returned malformed JSON or error, safely use deterministic fallback
   const fallbackResult = getDeterministicMilestoneFallback(params.title);
 
   return {

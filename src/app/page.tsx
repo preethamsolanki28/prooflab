@@ -62,7 +62,7 @@ export default function HomePage() {
             </div>
             <h3 className="text-sm font-bold text-slate-900">Dual-AI Privacy Routing</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Public data routes to cloud Gemini. Confidential data is processed strictly on local model runtimes.
+              Public data routes to cloud AI (OpenRouter GPT-4o-mini). Confidential data is processed strictly on local model runtimes.
             </p>
           </div>
 

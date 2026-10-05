@@ -5,7 +5,7 @@ dotenv.config({ path: ".env" });
 import {
   routeAiRequest,
   resolveRoutingPolicy,
-  callGeminiCloud,
+  callOpenRouterCloud,
   DataClassification,
 } from "../src/lib/ai";
 
@@ -26,7 +26,7 @@ async function runAiRoutingSuite() {
   const unknownPolicy = resolveRoutingPolicy("UNKNOWN");
 
   const policyPass =
-    publicPolicy.allowedProvider === "gemini" &&
+    publicPolicy.allowedProvider === "openrouter" &&
     publicPolicy.cloudAllowed === true &&
     publicPolicy.routeBadge === "PUBLIC DATA → CLOUD AI" &&
     confidentialPolicy.allowedProvider === "local" &&
@@ -40,7 +40,7 @@ async function runAiRoutingSuite() {
   if (policyPass) {
     results["POLICY_RESOLUTION"] = {
       pass: true,
-      details: "PASSED: PUBLIC routed to gemini (cloudAllowed=true); CONFIDENTIAL, MIXED, and UNKNOWN strictly routed to local (cloudAllowed=false).",
+      details: "PASSED: PUBLIC routed to openrouter (cloudAllowed=true); CONFIDENTIAL, MIXED, and UNKNOWN strictly routed to local (cloudAllowed=false).",
     };
     console.log("[PASS] Policy resolution is deterministic and fail-closed.\n");
   } else {
@@ -52,9 +52,9 @@ async function runAiRoutingSuite() {
   }
 
   // ---------------------------------------------------------------------------
-  // TEST 2 (M0-03 TEST A): PUBLIC -> Cloud Gemini
+  // TEST 2 (M0-03 TEST A): PUBLIC -> Cloud OpenRouter
   // ---------------------------------------------------------------------------
-  console.log("--- TEST 2 (TASK M0-03 TEST A): PUBLIC Data -> Cloud Gemini ---");
+  console.log("--- TEST 2 (TASK M0-03 TEST A): PUBLIC Data -> Cloud OpenRouter ---");
   const publicPrompt = "Generate milestones for this PUBLIC project summary: Low-cost edge detection of diabetic retinopathy.";
   console.log(`Input: "${publicPrompt}"`);
   console.log(`Classification: PUBLIC`);
@@ -71,7 +71,7 @@ async function runAiRoutingSuite() {
   console.log(`Output Snippet:\n  "${publicResult.output.slice(0, 160).replace(/\n/g, " ")}..."\n`);
 
   const isTest2Passed =
-    publicResult.provider === "gemini" &&
+    publicResult.provider === "openrouter" &&
     publicResult.routeBadge === "PUBLIC DATA → CLOUD AI" &&
     (publicResult.status === "SUCCESS" || publicResult.status === "CLOUD_FALLBACK_USED") &&
     publicResult.output.length > 0;
@@ -118,7 +118,33 @@ async function runAiRoutingSuite() {
   };
 
   // ---------------------------------------------------------------------------
-  // TEST 4 (M0-04): Local Model Failure -> Deterministic Local Fallback (Never Gemini)
+  // TEST 3B: MIXED & UNKNOWN -> Strictly Local Model
+  // ---------------------------------------------------------------------------
+  console.log("--- TEST 3B: MIXED and UNKNOWN Classifications -> Local Model Only ---");
+  const mixedResult = await routeAiRequest({
+    prompt: "Mixed data prompt",
+    classification: "MIXED",
+  });
+  const unknownResult = await routeAiRequest({
+    prompt: "Unknown data prompt",
+    classification: "UNKNOWN",
+  });
+
+  const isTest3BPassed =
+    mixedResult.provider === "local" &&
+    mixedResult.routeBadge === "CONFIDENTIAL DATA → LOCAL AI" &&
+    unknownResult.provider === "local" &&
+    unknownResult.routeBadge === "CONFIDENTIAL DATA → LOCAL AI";
+
+  results["MIXED_AND_UNKNOWN_LOCAL"] = {
+    pass: isTest3BPassed,
+    details: isTest3BPassed
+      ? "PASSED: MIXED and UNKNOWN classifications both strictly route to local model with zero cloud exposure."
+      : "FAILED: MIXED or UNKNOWN allowed cloud routing!",
+  };
+
+  // ---------------------------------------------------------------------------
+  // TEST 4 (M0-04): Local Model Failure -> Deterministic Local Fallback (Never OpenRouter)
   // ---------------------------------------------------------------------------
   console.log("--- TEST 4 (TASK M0-04): Local Model Failure Safety (Fail-Closed) ---");
   const outagePrompt = "Confidential trial data: [DO_NOT_SEND_TO_CLOUD_UNDER_ANY_CIRCUMSTANCE]";
@@ -147,7 +173,7 @@ async function runAiRoutingSuite() {
   results["M0_04_LOCAL_FAILURE_SAFETY"] = {
     pass: isTest4Passed,
     details: isTest4Passed
-      ? `PASSED: Under simulated local outage, router stayed on provider=local, status=LOCAL_AI_UNAVAILABLE, returned deterministic local fallback. Gemini was NEVER called.`
+      ? `PASSED: Under simulated local outage, router stayed on provider=local, status=LOCAL_AI_UNAVAILABLE, returned deterministic local fallback. OpenRouter was NEVER called.`
       : `FAILED: Local failure did not yield correct fail-closed state: ${JSON.stringify(fallbackResult)}`,
   };
 
@@ -158,7 +184,7 @@ async function runAiRoutingSuite() {
   let directCallBlocked = false;
   let blockErrorMsg = "";
   try {
-    await callGeminiCloud("Leak secret to cloud", "CONFIDENTIAL");
+    await callOpenRouterCloud("Leak secret to cloud", "CONFIDENTIAL");
   } catch (err: any) {
     directCallBlocked = err.message.includes("SECURITY_VIOLATION");
     blockErrorMsg = err.message;
@@ -167,8 +193,8 @@ async function runAiRoutingSuite() {
   results["DIRECT_CLOUD_GUARDRAIL"] = {
     pass: directCallBlocked,
     details: directCallBlocked
-      ? `PASSED: Direct invocation of Cloud Gemini with CONFIDENTIAL data threw '${blockErrorMsg}'. Direct transmission BLOCKED at code level.`
-      : "FAILED: Direct call to Cloud Gemini was not blocked!",
+      ? `PASSED: Direct invocation of Cloud OpenRouter with CONFIDENTIAL data threw '${blockErrorMsg}'. Direct transmission BLOCKED at code level.`
+      : "FAILED: Direct call to Cloud OpenRouter was not blocked!",
   };
   console.log(`[PASS] Direct cloud transmission attempt threw expected security violation.\n`);
 

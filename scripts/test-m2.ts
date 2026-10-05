@@ -239,7 +239,7 @@ async function runM2TestSuite() {
     );
 
     // ----------------------------------------------------
-    // TEST 5: Gemini explanation failure -> deterministic explanation returned
+    // TEST 5: OpenRouter explanation failure -> deterministic explanation returned
     // ----------------------------------------------------
     console.log("\n--- TEST 5: Deterministic Explanation Fallback ---");
     const singleMatch = scoreCandidate(testCandidates[0], requiredSkills);
@@ -255,9 +255,9 @@ async function runM2TestSuite() {
     );
 
     // ----------------------------------------------------
-    // TEST 6: Public task -> provider = Gemini
+    // TEST 6: Public task -> provider = OpenRouter / cloud
     // ----------------------------------------------------
-    console.log("\n--- TEST 6: Public Task Routing to Cloud Gemini ---");
+    console.log("\n--- TEST 6: Public Task Routing to Cloud OpenRouter ---");
     const publicCopilotRes = await runResearchCopilot({
       projectId: publicProject.id,
       ownerId: studentA.id,
@@ -301,7 +301,7 @@ async function runM2TestSuite() {
     );
 
     // ----------------------------------------------------
-    // TEST 8: Confidential local failure -> local fallback -> Gemini NOT called
+    // TEST 8: Confidential local failure -> local fallback -> OpenRouter NOT called
     // ----------------------------------------------------
     console.log("\n--- TEST 8: Local Failure Fail-Closed Safety ---");
     const failedLocalRes = await routeAiRequest({
@@ -314,12 +314,12 @@ async function runM2TestSuite() {
       failedLocalRes.provider === "local" &&
       failedLocalRes.status === "LOCAL_AI_UNAVAILABLE" &&
       failedLocalRes.telemetrySafe === true &&
-      !failedLocalRes.output.includes("Cloud Gemini");
+      !failedLocalRes.output.includes("Cloud OpenRouter");
 
     report(
       "TEST 8: Fail-Closed Local Outage",
       t8Ok,
-      `Under simulated local runtime failure, router returned status: ${failedLocalRes.status}; Cloud Gemini was NEVER invoked`
+      `Under simulated local runtime failure, router returned status: ${failedLocalRes.status}; Cloud OpenRouter was NEVER invoked`
     );
 
     // ----------------------------------------------------

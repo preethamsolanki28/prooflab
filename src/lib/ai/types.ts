@@ -4,7 +4,7 @@
 
 export type DataClassification = "PUBLIC" | "CONFIDENTIAL" | "MIXED" | "UNKNOWN";
 
-export type AiProvider = "gemini" | "local";
+export type AiProvider = "openrouter" | "local";
 
 export type AiRouteStatus =
   | "SUCCESS"
@@ -41,6 +41,8 @@ export interface AiRequestOptions {
   systemPrompt?: string;
   localBaseUrl?: string;
   localModel?: string;
+  openrouterApiKey?: string;
+  openrouterModel?: string;
   geminiApiKey?: string;
   geminiModel?: string;
 }

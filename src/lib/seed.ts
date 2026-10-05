@@ -270,7 +270,7 @@ export async function seedDemoData() {
           ip_terms: "CC-BY-4.0 Open Source attribution license.",
           publication_terms: "Public open access report with verified student credits.",
           confidentiality_terms: "Public project data; cloud LLM assistance allowed.",
-          permitted_ai_tools: "Cloud Gemini allowed for public code generation and scoping.",
+          permitted_ai_tools: "Cloud AI (OpenRouter GPT-4o-mini) allowed for public code generation and scoping.",
           credit_reward_terms:
             "Non-monetary Research Credits, digital verifiable research credential issued on milestone acceptance.",
           sponsor_withdrawal_terms:

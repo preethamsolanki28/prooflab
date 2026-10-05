@@ -1,8 +1,12 @@
+// ==============================================================================
+// Gardenia 2K26 — OpenRouter Cloud AI Adapter (For Public Data Only)
+// ==============================================================================
+
 import { DataClassification } from "./types";
 
-const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const DEFAULT_OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
-export interface GeminiResponse {
+export interface OpenRouterResponse {
   output: string;
   model: string;
   fallbackUsed: boolean;
@@ -10,7 +14,7 @@ export interface GeminiResponse {
 }
 
 /**
- * Deterministic fallback for public tasks when Cloud Gemini is unavailable.
+ * Deterministic fallback for public tasks when Cloud OpenRouter is unavailable.
  */
 function getDeterministicPublicFallback(prompt: string): string {
   return [
@@ -24,10 +28,10 @@ function getDeterministicPublicFallback(prompt: string): string {
 }
 
 /**
- * Executes Cloud Gemini request for PUBLIC data only.
+ * Executes Cloud OpenRouter request for PUBLIC data only.
  * Throws immediately if data classification is NOT PUBLIC.
  */
-export async function callGeminiCloud(
+export async function callOpenRouterCloud(
   prompt: string,
   classification: DataClassification,
   options?: {
@@ -35,61 +39,59 @@ export async function callGeminiCloud(
     model?: string;
     systemPrompt?: string;
   }
-): Promise<GeminiResponse> {
+): Promise<OpenRouterResponse> {
   // CRITICAL SECURITY ENFORCEMENT: Never send confidential data to cloud
   if (classification !== "PUBLIC") {
     throw new Error(
-      `SECURITY_VIOLATION: Attempted to send ${classification} data to Cloud Gemini API. This is strictly prohibited by data governance policy.`
+      `SECURITY_VIOLATION: Attempted to send ${classification} data to Cloud OpenRouter API. This is strictly prohibited by data governance policy.`
     );
   }
 
-  const apiKey = options?.apiKey || process.env.GEMINI_API_KEY;
-  const model = options?.model || DEFAULT_GEMINI_MODEL;
+  const apiKey = options?.apiKey || process.env.OPENROUTER_API_KEY;
+  const model = options?.model || DEFAULT_OPENROUTER_MODEL;
 
   if (!apiKey) {
-    console.warn("GEMINI_API_KEY is not configured; using deterministic public fallback.");
+    console.warn("OPENROUTER_API_KEY is not configured; using deterministic public fallback.");
     return {
       output: getDeterministicPublicFallback(prompt),
       model: `${model} (fallback)`,
       fallbackUsed: true,
-      error: "MISSING_GEMINI_API_KEY",
+      error: "MISSING_OPENROUTER_API_KEY",
     };
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = "https://openrouter.ai/api/v1/chat/completions";
 
-  const contents: any[] = [];
+  const messages: Array<{ role: "system" | "user"; content: string }> = [];
   if (options?.systemPrompt) {
-    contents.push({
-      role: "user",
-      parts: [{ text: `System Instructions: ${options.systemPrompt}` }],
+    messages.push({
+      role: "system",
+      content: options.systemPrompt,
     });
   }
-  contents.push({
+  messages.push({
     role: "user",
-    parts: [{ text: prompt }],
+    content: prompt,
   });
 
   try {
-    let res = await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://gardenia.research",
+        "X-Title": "Gardenia 2K26 Research Ecosystem",
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+      }),
     });
-
-    // If 503 high demand spike, retry once after 1.5 seconds
-    if (res.status === 503) {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents }),
-      });
-    }
 
     if (!res.ok) {
       const errText = await res.text();
-      console.warn(`Gemini API returned status ${res.status}: ${errText}`);
+      console.warn(`OpenRouter API returned status ${res.status}: ${errText}`);
       return {
         output: getDeterministicPublicFallback(prompt),
         model: `${model} (fallback)`,
@@ -100,7 +102,7 @@ export async function callGeminiCloud(
 
     const data = await res.json();
     const candidateText =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      data.choices?.[0]?.message?.content || "";
 
     if (!candidateText) {
       return {
@@ -117,7 +119,7 @@ export async function callGeminiCloud(
       fallbackUsed: false,
     };
   } catch (err: any) {
-    console.warn(`Gemini network call failed: ${err.message}; using deterministic public fallback.`);
+    console.warn(`OpenRouter network call failed: ${err.message}; using deterministic public fallback.`);
     return {
       output: getDeterministicPublicFallback(prompt),
       model: `${model} (fallback)`,

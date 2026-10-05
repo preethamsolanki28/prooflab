@@ -83,7 +83,7 @@ export async function GET(
 
     const scoredMatches = matchCandidates(candidates, uniqueRequiredSkills, targetRole);
 
-    // 4. Optionally enrich explanations via Gemini (safe non-blocking public explanation)
+    // 4. Optionally enrich explanations via OpenRouter (safe non-blocking public explanation)
     const enrichedMatches = await enrichMatchExplanations(scoredMatches, project.title);
 
     return NextResponse.json({

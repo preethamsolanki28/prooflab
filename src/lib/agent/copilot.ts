@@ -241,7 +241,7 @@ export async function runResearchCopilot(params: CopilotRunParams): Promise<Copi
 
   if (isDraftRequest) {
     toolUsed = "draft_contribution_summary";
-    const declaredAi = promptLower.includes("with ai") || promptLower.includes("ai-assisted") || promptLower.includes("using gemini");
+    const declaredAi = promptLower.includes("with ai") || promptLower.includes("ai-assisted") || promptLower.includes("using gemini") || promptLower.includes("using openrouter") || promptLower.includes("using gpt");
     draftResult = draftContributionSummary(params.task, declaredAi);
   }
 
@@ -281,7 +281,7 @@ Provide a constructive 2-3 sentence review and feedback for the researcher on th
 }`;
 
   // 5. Route through Two-Model Privacy Router
-  // Confidentials -> Local Ollama; Public -> Cloud Gemini
+  // Confidentials -> Local Ollama; Public -> Cloud OpenRouter
   const routeResult = await routeAiRequest({
     prompt: fullPrompt,
     classification,
@@ -298,7 +298,7 @@ Summary: ${draftResult.summary}
 ${routeResult.output}`
     : routeResult.output;
 
-  const aiProviderLabel = routeResult.provider === "gemini" ? "cloud" : "local";
+  const aiProviderLabel = (routeResult.provider === "openrouter" || (routeResult.provider as any) === "gemini") ? "cloud" : "local";
 
   // 6. Record run into public.agent_runs table
   const { data: runRecord, error: rErr } = await admin

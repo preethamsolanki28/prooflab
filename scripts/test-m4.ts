@@ -465,7 +465,7 @@ async function runM4TestSuite() {
     });
 
     const isTest14Ok =
-      (publicRoute.provider === "gemini" || publicRoute.status === "SUCCESS" || publicRoute.status === "CLOUD_FALLBACK_USED") &&
+      (publicRoute.provider === "openrouter" || publicRoute.status === "SUCCESS" || publicRoute.status === "CLOUD_FALLBACK_USED") &&
       confidentialRoute.provider === "local";
 
     report(

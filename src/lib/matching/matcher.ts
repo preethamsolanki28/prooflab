@@ -162,9 +162,9 @@ export function matchCandidates(
 }
 
 /**
- * Optional Gemini summarization of match results.
- * CRITICAL: Gemini NEVER determines score or eligibility; only generates readable summary bullets.
- * If Gemini fails or times out, deterministic explanations are returned seamlessly.
+ * Optional OpenRouter summarization of match results.
+ * CRITICAL: OpenRouter NEVER determines score or eligibility; only generates readable summary bullets.
+ * If OpenRouter fails or times out, deterministic explanations are returned seamlessly.
  */
 export async function enrichMatchExplanations(
   matches: MatchResult[],
@@ -201,7 +201,7 @@ For each candidate, output 2-3 concise bullet points under their name highlighti
       });
     }
   } catch (err) {
-    console.warn("Gemini explanation enrichment skipped, using deterministic reason:", err);
+    console.warn("OpenRouter explanation enrichment skipped, using deterministic reason:", err);
   }
 
   return matches;
