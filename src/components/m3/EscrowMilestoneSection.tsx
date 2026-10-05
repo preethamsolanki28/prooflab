@@ -65,7 +65,11 @@ export default function EscrowMilestoneSection({
       setSuccessMsg(data.message || `Milestone action '${action}' completed successfully.`);
       onRefresh();
     } catch (err: any) {
-      setErrorMsg(err.message || "Escrow operation failed");
+      if (action === "release") {
+        setErrorMsg("Escrow was not released. No payout was created.");
+      } else {
+        setErrorMsg(err.message || `Failed to ${action} escrow`);
+      }
     } finally {
       setLoadingAction(null);
     }

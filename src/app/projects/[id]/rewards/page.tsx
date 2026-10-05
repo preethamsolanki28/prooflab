@@ -106,11 +106,11 @@ export default function RewardsExplanationPage({
             </Link>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Focus C: Provenance & Rewards
+                <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider">
+                  REWARD EXPLANATION
                 </span>
-                <span className="text-xs text-slate-400 font-mono">
-                  {project.title}
+                <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  Focus C: Provenance & Governance
                 </span>
               </div>
               <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2 mt-0.5">

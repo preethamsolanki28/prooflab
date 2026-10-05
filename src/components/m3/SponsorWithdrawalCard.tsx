@@ -59,14 +59,20 @@ export default function SponsorWithdrawalCard({
   if (isWithdrawn) {
     return (
       <div className="bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl p-6 text-amber-950 space-y-3">
-        <div className="flex items-center gap-2 text-amber-900 font-bold text-base">
-          <OctagonAlert className="w-5 h-5 text-amber-600" />
-          PROJECT STATUS: Sponsor Withdrew the Project
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-amber-900 font-bold text-base">
+            <OctagonAlert className="w-5 h-5 text-amber-600" />
+            PROJECT STATUS: Sponsor Withdrew the Project
+          </div>
+          <span className="px-2.5 py-1 text-[11px] font-black uppercase tracking-wider rounded-md bg-emerald-600 text-white flex items-center gap-1 shadow-xs">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            CREDITS PROTECTED
+          </span>
         </div>
-        <p className="text-xs text-amber-800 leading-relaxed">
+        <p className="text-xs text-amber-800 leading-relaxed font-medium">
           The sponsor has formally exercised withdrawal under Charter Article 7.
-          New contribution work is permanently stopped. All previously reviewed and accepted
-          contributions and derived Research Credits remain strictly <strong>PROTECTED</strong> and immutable.
+          New contribution work is permanently stopped. <strong>Accepted credit remains protected.</strong> All previously reviewed and accepted
+          contributions and derived Research Credits remain strictly immutable in the ledger.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <div className="p-3 bg-white/80 rounded-xl border border-amber-200">

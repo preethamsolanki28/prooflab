@@ -213,32 +213,36 @@ Post → Scope → Match → Join → Fund → Work → Catch → Accept → Rew
 
 Do not spend this block on feature work.
 
-## M5 — Focus C + hardening
+## M5 — Final hardening + demo freeze
 
-**03:00–05:30 — 2.5h**
+**03:00–05:30 — 2.5h** [COMPLETED & VERIFIED: All test suites passing, zero build/typecheck errors]
 
-### TASK-M5-01 — Credits UI
-**25 min**
+### TASK-M5-01 — Credits UI [COMPLETED]
+- Visible `RESEARCH CREDITS` display and derivation breakdown on contributor profiles and review workflows.
 
-### TASK-M5-02 — Reward explanation
-**30 min**
+### TASK-M5-02 — Reward explanation [COMPLETED]
+- `/projects/[id]/rewards` page complete with explicit `REWARD EXPLANATION` badge.
+- Live arithmetic calculation (₹40,000 pool, 8/20 credits = 40% -> ₹16,000).
+- Handout Benchmark Fixture (Student 1: ₹25,783, Student 2: ₹18,643, Student 3: ₹15,074, Expert: ₹25,500).
 
-### TASK-M5-03 — Sponsor abandonment demo state
-**20 min**
+### TASK-M5-03 — Sponsor abandonment demo state [COMPLETED]
+- Formal withdrawal transitions status to `sponsor_withdrawn`.
+- UI clearly displays `CREDITS PROTECTED` badge and exact notice: *"Accepted credit remains protected."*
+- Subsequent contributions blocked with `PROJECT_WITHDRAWN`.
 
-### TASK-M5-04 — Charter withdrawal clause display
-**20 min**
+### TASK-M5-04 — Charter withdrawal clause display [COMPLETED]
+- Charter terms explicitly present Article 7: Voluntary Sponsor Withdrawal & Protection of Accepted Work.
 
-### TASK-M5-05 — AI route/privacy indicators
-**20 min**
+### TASK-M5-05 — AI route/privacy indicators [COMPLETED]
+- Prominent badges in project header and copilot: `CONFIDENTIAL DATA · STRICT ON-DEVICE AI ONLY`, `PUBLIC DATA · CLOUD AI PERMITTED`, `LOCAL AI`, `CLOUD AI`.
 
-### TASK-M5-06 — Watermark polish
-**15 min**
+### TASK-M5-06 — Watermark polish [COMPLETED]
+- Dynamic viewer watermark `${NAME} · ${PROJECT_ID} · ${TIME}` rendered on confidential brief view.
 
-### TASK-M5-07 — Error/fallback states
-**20 min**
+### TASK-M5-07 — Error/fallback states [COMPLETED]
+- Verified deterministic fallbacks for Cloud Gemini quota limits (`status: CLOUD_FALLBACK_USED`), local Ollama fail-closed behavior, charter version conflict handling, and Tamper Lab mismatch reporting (`TAMPER DETECTED: First mismatch: Entry 1`).
 
-Done when the innovations are visible without needing a verbal explanation.
+Done when the innovations are visible without needing a verbal explanation. [VERIFIED & FROZEN]
 
 ## M6 — Final hardening + recording
 

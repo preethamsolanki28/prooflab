@@ -14,6 +14,8 @@ export interface GeminiResponse {
  */
 function getDeterministicPublicFallback(prompt: string): string {
   return [
+    "Cloud AI unavailable. Using saved public-task result.",
+    "",
     "PUBLIC PROJECT MILESTONES (Cached Deterministic Fallback):",
     "1. Milestone 1: Data Preprocessing & Edge Architecture Setup - Clean input dataset, normalize images, and establish baseline inference pipeline on target edge constraints.",
     "2. Milestone 2: Evaluation, Clinical Metric Validation & Documentation - Benchmark precision/recall on validation cohort and deliver reproduction report.",

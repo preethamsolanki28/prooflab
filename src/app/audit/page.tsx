@@ -130,7 +130,12 @@ export default function AuditPage() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="w-full">
-                  <h3 className="text-sm font-bold">Tamper Lab Proof: Cryptographic Mismatch Detected</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded bg-rose-600 text-white">
+                      TAMPER DETECTED
+                    </span>
+                    <h3 className="text-sm font-bold">Ledger verification failed. First mismatch: Entry {verifyResult.result?.detected_at_index ?? 1}.</h3>
+                  </div>
                   <p className="text-xs text-amber-800 mt-1">
                     An attacker attempting to retroactively modify a ledger payload causes an immediate hash cascade failure. The production ledger remains 100% untouched.
                   </p>
@@ -148,7 +153,12 @@ export default function AuditPage() {
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="text-sm font-bold">Cryptographic Chain Verification: 100% VALID</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded bg-emerald-600 text-white">
+                      LEDGER VERIFIED
+                    </span>
+                    <h3 className="text-sm font-bold">Cryptographic Chain Verification: 100% VALID</h3>
+                  </div>
                   <p className="text-xs text-emerald-800 mt-1">
                     All {verifyResult.result?.entries_verified} sequential entries verified from GENESIS without modification.
                   </p>

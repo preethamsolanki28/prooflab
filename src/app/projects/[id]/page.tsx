@@ -565,7 +565,7 @@ export default function ProjectDetailPage({
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
               <Award className="w-3.5 h-3.5 text-purple-600" />
-              KNOWLEDGE-SHARING (VERIFIABLE RESEARCH CREDITS)
+              KNOWLEDGE-SHARING: Credit + Recognition (₹0 Monetary Payout)
             </span>
           )}
 
@@ -1620,10 +1620,15 @@ export default function ProjectDetailPage({
               <div className="mt-6">
                 {verificationResult.simulation ? (
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
-                    <p className="font-bold flex items-center gap-1.5">
-                      <AlertCircle className="w-4 h-4 text-amber-600" />
-                      Tamper Lab Simulation Results (Production Ledger Untouched):
-                    </p>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded bg-rose-600 text-white">
+                        TAMPER DETECTED
+                      </span>
+                      <p className="font-bold flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                        Ledger verification failed. First mismatch: Entry {verificationResult.result?.detected_at_index ?? 1}.
+                      </p>
+                    </div>
                     <div className="mt-2 font-mono text-[11px] bg-white p-3 rounded border border-amber-200 overflow-x-auto">
                       <div>Status: <strong>{verificationResult.result?.status}</strong></div>
                       <div>Reason: {verificationResult.result?.reason}</div>
@@ -1633,10 +1638,15 @@ export default function ProjectDetailPage({
                   </div>
                 ) : verificationResult.result?.status === "PASS" ? (
                   <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900">
-                    <p className="font-bold flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      Cryptographic Chain Verified: PASS ({verificationResult.result?.entries_verified} entries valid)
-                    </p>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded bg-emerald-600 text-white">
+                        LEDGER VERIFIED
+                      </span>
+                      <p className="font-bold flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        Cryptographic Chain Verified: PASS ({verificationResult.result?.entries_verified} entries valid)
+                      </p>
+                    </div>
                     <div className="mt-1 font-mono text-[11px] text-emerald-800">
                       Head Hash: {verificationResult.result?.head_hash}
                     </div>

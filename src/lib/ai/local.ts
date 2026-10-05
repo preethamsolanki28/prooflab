@@ -23,6 +23,8 @@ export function getDeterministicLocalFallback(prompt: string): string {
   const safeExcerpt = prompt.slice(0, 60).replace(/[\r\n]+/g, " ");
 
   return [
+    "Local AI unavailable. Confidential data was NOT sent to the cloud.",
+    "",
     "CONFIDENTIAL RESEARCH WORKSPACE (Deterministic Local Fallback):",
     `• Context: "${safeExcerpt}..."`,
     "• Privacy Status: SAFEGUARD ACTIVE. Data processed entirely on-device; zero cloud transmission.",
