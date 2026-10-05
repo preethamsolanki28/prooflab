@@ -129,40 +129,57 @@ Done when:
 - local failure does not leak confidential input; [PASSED]
 - automated suite verified: `npm run test:m2` [11/11 PASSED]
 
-## M3 — Contributions, credits, ledger, escrow, protection
+## M3 — Contributions, credits, ledger, escrow, protection [COMPLETED]
 
 **20:00–23:30 — 3.5h**
 
-### TASK-M3-01 — Contribution creation
-**20 min**
+### TASK-M3-01 — Contribution creation [PASSED]
+- Strictly derived authenticated owner (`owner_id`).
+- Deterministic server-side SHA-256 content hashing (`content_hash`).
+- Cryptographic ledger event: `CONTRIBUTION_SUBMITTED`.
 
-### TASK-M3-02 — Review score 0–5
-**25 min**
+### TASK-M3-02 — Review score 0–5 [PASSED]
+- Transparent rubric: Quality (0-2) + Usefulness (0-2) + Evidence (0-1) = Impact Score (0-5).
+- Decisions: `APPROVED`, `REJECTED`, `NEEDS_REVISION`.
+- Cryptographic ledger event: `CONTRIBUTION_REVIEWED`.
 
-### TASK-M3-03 — Research Credits derived from approved impact
-**25 min**
+### TASK-M3-03 — Research Credits derived from approved impact [PASSED]
+- Credits derived strictly server-side from approved contribution impact scores.
+- Client cannot submit or mutate credit balance.
+- Cryptographic ledger event: `CREDITS_AWARDED`.
 
-### TASK-M3-04 — Hash-chained ledger + verification
-**40 min**
+### TASK-M3-04 — Hash-chained ledger + verification [PASSED]
+- Append-only hash chain linking all M3 events (`CONTRIBUTION_SUBMITTED`, `CONTRIBUTION_REVIEWED`, `CREDITS_AWARDED`, `ESCROW_FUNDED`, `MILESTONE_ACCEPTED`, `ESCROW_RELEASED`, `PROJECT_WITHDRAWN`, `DISPUTE_OPENED`, `DISPUTE_RESOLVED`, `CREDENTIAL_ISSUED`).
+- Tamper Lab verifies that mutation of history fails cryptographic validation while production remains intact.
 
-### TASK-M3-05 — Seeded similarity integrity check
-**10 min**
+### TASK-M3-05 — Seeded similarity integrity check [PASSED]
+- Deterministic SHA-256 hash detection against previously committed work units.
 
-### TASK-M3-06 — Escrow funded → released
-**20 min**
+### TASK-M3-06 — Escrow funded → released [PASSED]
+- Escrow state machine: `UNFUNDED` → `FUNDED` (by sponsor) → `RELEASED` (by sponsor upon milestone acceptance).
+- Students strictly prevented from releasing escrow (`UNAUTHORIZED_ESCROW_RELEASE`).
+- Cryptographic ledger events: `ESCROW_FUNDED`, `MILESTONE_ACCEPTED`, `ESCROW_RELEASED`.
 
-### TASK-M3-07 — Sponsor withdrawal/protection state
-**25 min**
+### TASK-M3-07 — Sponsor withdrawal/protection state [PASSED]
+- Project transitions to `SPONSOR_WITHDRAWN` / `WORK_STOPPED`.
+- Future contributions strictly blocked (`PROJECT_WITHDRAWN`).
+- Accepted contributions and derived Research Credits remain completely protected and intact.
+- Cryptographic ledger event: `PROJECT_WITHDRAWN`.
 
-### TASK-M3-08 — Reward explanation + credential
-**25 min**
+### TASK-M3-08 — Reward explanation + credential [PASSED]
+- Pure deterministic server-side formula: `student_pool × (member_credit_weight / total_credit_weight)`.
+- Dedicated explainability view at `/projects/[id]/rewards` with step-by-step arithmetic provenance.
+- Handout example benchmark fixture matches exact stated numbers (25,783, 18,643, 15,074, 25,500).
+- Verifiable digital credentials for knowledge-sharing projects with zero monetary payout.
+- Cryptographic ledger events: `DISPUTE_OPENED`, `DISPUTE_RESOLVED`, `CREDENTIAL_ISSUED`.
 
 Done when:
-- accepted contribution gains credits;
-- reward is calculated from reviewed contribution weight;
-- sponsor withdrawal stops new work and preserves accepted credit;
-- ledger verifies;
-- funded milestone reaches funded state before work and released after acceptance.
+- accepted contribution gains credits; [PASSED]
+- reward is calculated from reviewed contribution weight; [PASSED]
+- sponsor withdrawal stops new work and preserves accepted credit; [PASSED]
+- ledger verifies; [PASSED]
+- funded milestone reaches funded state before work and released after acceptance; [PASSED]
+- automated suite verified: `npm run test:m3` [18/18 PASSED]
 
 ## M4 — Resilient fallback + integration
 
