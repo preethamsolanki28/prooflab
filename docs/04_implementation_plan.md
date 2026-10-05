@@ -20,17 +20,22 @@ Before the 3:00 PM implementation window, verify that the local model runtime is
 
 **15:00–16:00 — 1h**
 
-### TASK-M0-01 — Supabase connection
+### TASK-M0-01 — Supabase connection [COMPLETED]
 **15 min**
 
 Done when the local Next.js app can read/write a test row.
+- [x] Local Supabase (Postgres 17 + PostgREST + GoTrue Auth) running
+- [x] Initialized Next.js App Router with TypeScript/Tailwind and `@supabase/supabase-js`
+- [x] Configured `.env.local` and admin/client connectors
 
-### TASK-M0-02 — RLS private brief test
+### TASK-M0-02 — RLS private brief test [COMPLETED]
 **20 min**
 
 Done when:
-- non-member cannot read brief;
-- accepted member can.
+- [x] non-member cannot read brief;
+- [x] accepted member can.
+- [x] Hash-chained ledger append, verification, and mutation blocks verified
+- [x] Safe Tamper Lab simulation verified on in-memory copy
 
 ### TASK-M0-03 — Dual-AI router test
 **15 min**
@@ -272,8 +277,8 @@ Never cut:
 - [ ] route label visible
 
 ### Access
-- [ ] non-member cannot read private brief
-- [ ] accepted member can
+- [x] non-member cannot read private brief
+- [x] accepted member can
 - [ ] watermark visible on private brief
 
 ### Contributions/credits
@@ -284,16 +289,16 @@ Never cut:
 - [ ] local client cannot author final credit amount
 
 ### Charter/protection
-- [ ] charter accepted before work
+- [x] charter accepted before work
 - [ ] sponsor withdrawal stops new work
 - [ ] accepted credit survives withdrawal
 - [ ] funded escrow is protected
 
 ### Ledger
-- [ ] hash chain verifies
-- [ ] UPDATE blocked
-- [ ] DELETE blocked
-- [ ] tamper lab fails verification
+- [x] hash chain verifies
+- [x] UPDATE blocked
+- [x] DELETE blocked
+- [x] tamper lab fails verification
 
 ### Fallback
 - [ ] contribution write can enter pending local outbox

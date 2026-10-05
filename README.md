@@ -65,6 +65,7 @@ Verify:
 ```bash
 npm run typecheck
 npm run build
+npm run test:m0
 ```
 
 ## Seed/demo
@@ -130,8 +131,8 @@ The required Section 6 story remains the backbone.
 Before submission, list every AI coding tool actually used:
 
 ```text
-- Tool: <name>
-  Use: <what it helped with>
+- Tool: Antigravity (Google DeepMind)
+  Use: Architecture implementation, schema design, Supabase RLS policies, pgcrypto hash-chained ledger, and M0 test suite
 ```
 
 Do not claim tools that were not used.
