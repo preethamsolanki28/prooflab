@@ -9,10 +9,12 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
  * NEVER expose to the browser.
  */
 export function createAdminClient() {
-  if (!supabaseServiceRoleKey) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!key) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for admin server client.");
   }
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  return createClient(url, key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -25,7 +27,9 @@ export function createAdminClient() {
  * Enforces PostgreSQL Row-Level Security (RLS) under that user's identity.
  */
 export function createScopedUserClient(userJwt: string) {
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  return createClient(url, anonKey, {
     global: {
       headers: {
         Authorization: `Bearer ${userJwt}`,
