@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { id: projectId } = await params;
     const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    const token = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) {
       return NextResponse.json({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
     }

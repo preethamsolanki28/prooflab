@@ -5,7 +5,7 @@ import { appendLedgerEntry } from "@/lib/ledger";
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    const token = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) {
       return NextResponse.json({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
     }
