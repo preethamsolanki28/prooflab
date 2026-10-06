@@ -107,7 +107,7 @@ export default function WorkspacesPage() {
                 </span>
 
                 <Link
-                  href={`/projects/${ws.id}?tab=workspace`}
+                  href={`/projects/${ws.id}/workspace`}
                   className="inline-flex items-center gap-1 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors shadow-2xs"
                 >
                   <span>Open Workspace</span>

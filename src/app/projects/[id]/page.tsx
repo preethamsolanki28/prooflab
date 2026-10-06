@@ -937,6 +937,8 @@ export default function ProjectDetailPage({
         <BrowserIDE
           projectId={project.id}
           projectTitle={project.title}
+          projectSummary={project.public_summary}
+          dataSensitivity={project.data_sensitivity}
           githubRepoUrl={(project as any).github_repo_url}
           token={session?.access_token}
           isApprovedMember={isApprovedMember}

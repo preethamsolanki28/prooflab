@@ -29,7 +29,7 @@ export async function GET(
     // 1. Fetch project details
     const { data: project, error: pErr } = await admin
       .from("projects")
-      .select("id, title, status, sponsor_id, github_repo_url")
+      .select("id, title, status, sponsor_id, github_repo_url, public_summary, data_sensitivity")
       .eq("id", projectId)
       .single();
 
@@ -77,7 +77,34 @@ export async function GET(
       );
     }
 
-    // 3. Authorized — return workspace configuration
+    // 3. Fetch supplementary workspace context: members, charter milestones, commits
+    const { data: membersData } = await admin
+      .from("project_members")
+      .select("user_id, role, status, joined_at, profiles:user_id(display_name, role)")
+      .eq("project_id", projectId);
+
+    const { data: charterData } = await admin
+      .from("charters")
+      .select("milestones_json, budget")
+      .eq("project_id", projectId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let commitsList: any[] = [];
+    try {
+      const { data: commits } = await admin
+        .from("workspace_commits")
+        .select("id, commit_hash, commit_message, branch, changed_files, created_at, user_id")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      commitsList = commits || [];
+    } catch {
+      commitsList = [];
+    }
+
+    // 4. Authorized — return workspace configuration
     const workspaceServiceUrl = process.env.WORKSPACE_SERVICE_URL || null;
 
     return NextResponse.json({
@@ -85,14 +112,20 @@ export async function GET(
       project: {
         id: project.id,
         title: project.title,
+        publicSummary: project.public_summary || "",
+        dataSensitivity: project.data_sensitivity || "confidential",
         status: project.status,
         githubRepoUrl: project.github_repo_url || null,
+        budget: charterData?.budget || 0,
       },
       user: {
         id: user.id,
         isSponsor,
         isApprovedMember,
       },
+      members: membersData || [],
+      milestones: charterData?.milestones_json || [],
+      commits: commitsList,
       workspaceServiceUrl,
     });
   } catch (err: any) {
