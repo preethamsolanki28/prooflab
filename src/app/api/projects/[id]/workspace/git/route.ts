@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { exec } from "child_process";
 import crypto from "crypto";
 import path from "path";
+import os from "os";
 import fs from "fs";
 
 export async function GET(
@@ -23,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspaces", projectId);
+    const workspaceDir = path.join(os.tmpdir(), "workspaces", projectId);
 
     // Get git status
     let statusOutput = "";
@@ -87,27 +88,34 @@ export async function POST(
       return NextResponse.json({ error: "Commit message is required" }, { status: 400 });
     }
 
-    const workspaceDir = path.join(process.cwd(), ".workspaces", projectId);
-    if (!fs.existsSync(path.join(workspaceDir, ".git"))) {
-      await new Promise((resolve) => exec("git init -b main", { cwd: workspaceDir }, resolve));
+    const workspaceDir = path.join(os.tmpdir(), "workspaces", projectId);
+    let commitHash = crypto.randomBytes(20).toString("hex");
+
+    try {
+      if (!fs.existsSync(workspaceDir)) {
+        fs.mkdirSync(workspaceDir, { recursive: true });
+      }
+      if (!fs.existsSync(path.join(workspaceDir, ".git"))) {
+        await new Promise((resolve) => exec("git init -b main", { cwd: workspaceDir }, resolve));
+      }
+      await new Promise((resolve) => exec("git add .", { cwd: workspaceDir }, resolve));
+      const commitMsg = message.replace(/"/g, '\\"');
+      await new Promise<{ error: any; stdout: string }>((resolve) => {
+        exec(`git commit -m "${commitMsg}"`, { cwd: workspaceDir }, (error, stdout) => {
+          resolve({ error, stdout });
+        });
+      });
+      const hashResult = await new Promise<string>((resolve) => {
+        exec("git rev-parse HEAD", { cwd: workspaceDir }, (_, stdout) => {
+          resolve(stdout ? stdout.trim() : "");
+        });
+      });
+      if (hashResult) {
+        commitHash = hashResult;
+      }
+    } catch {
+      // Fallback for serverless Vercel environment
     }
-
-    // Run git add
-    await new Promise((resolve) => exec("git add .", { cwd: workspaceDir }, resolve));
-
-    // Run git commit
-    const commitMsg = message.replace(/"/g, '\\"');
-    const commitExec = await new Promise<{ error: any; stdout: string }>((resolve) => {
-      exec(`git commit -m "${commitMsg}"`, { cwd: workspaceDir }, (error, stdout) => {
-        resolve({ error, stdout });
-      });
-    });
-
-    const commitHash = await new Promise<string>((resolve) => {
-      exec("git rev-parse HEAD", { cwd: workspaceDir }, (_, stdout) => {
-        resolve(stdout ? stdout.trim() : crypto.randomBytes(20).toString("hex"));
-      });
-    });
 
     const changedFiles = Array.isArray(files) && files.length > 0 ? files : ["src/"];
 

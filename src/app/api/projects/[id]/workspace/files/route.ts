@@ -1,7 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import fs from "fs";
 import path from "path";
+
+const BUCKET_NAME = "workspace-files";
+
+let bucketEnsured = false;
+async function ensureBucket(admin: any) {
+  if (bucketEnsured) return;
+  try {
+    await admin.storage.createBucket(BUCKET_NAME, { public: true });
+  } catch {
+    // Bucket already exists
+  }
+  bucketEnsured = true;
+}
+
+function getContentType(filePath: string): string {
+  const ext = filePath.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "json":
+      return "application/json";
+    case "js":
+    case "mjs":
+    case "cjs":
+      return "application/javascript";
+    case "ts":
+    case "tsx":
+      return "text/typescript";
+    case "py":
+      return "text/x-python";
+    case "md":
+      return "text/markdown";
+    case "html":
+      return "text/html";
+    case "css":
+      return "text/css";
+    case "sql":
+      return "text/sql";
+    case "sh":
+    case "bash":
+      return "application/x-sh";
+    case "yaml":
+    case "yml":
+      return "text/yaml";
+    default:
+      return "text/plain";
+  }
+}
 
 // Verify workspace existence and optional user session
 async function authorizeWorkspace(token: string | null | undefined, projectId: string) {
@@ -24,56 +69,6 @@ async function authorizeWorkspace(token: string | null | undefined, projectId: s
   return { user, project, admin };
 }
 
-// Ensure local project workspace storage exists with initial files
-function getProjectWorkspaceDir(projectId: string, projectTitle: string) {
-  const baseDir = path.join(process.cwd(), ".workspaces", projectId);
-  if (!fs.existsSync(baseDir)) {
-    fs.mkdirSync(baseDir, { recursive: true });
-
-    // Seed realistic research workspace files
-    const readmeContent = `# ${projectTitle}\n\n## Overview\nThis is the authoritative workspace repository for ${projectTitle}.\n\n## Getting Started\n\`\`\`bash\nnpm install\nnpm run test\nnpm run build\n\`\`\`\n\n## Contribution Guidelines\n1. Modify or add source code under \`src/\`\n2. Run tests to ensure validation passes\n3. Use \`git add\` and \`git commit\` to record your changes\n4. Submit your contribution for sponsor peer review\n`;
-    fs.writeFileSync(path.join(baseDir, "README.md"), readmeContent);
-
-    const packageJsonContent = JSON.stringify(
-      {
-        name: projectTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        version: "1.0.0",
-        description: `Research repository for ${projectTitle}`,
-        main: "src/index.js",
-        scripts: {
-          test: "node tests/test_runner.js",
-          build: "echo 'Build completed: All research artifacts compiled successfully.'",
-          start: "node src/index.js",
-        },
-        dependencies: {},
-      },
-      null,
-      2
-    );
-    fs.writeFileSync(path.join(baseDir, "package.json"), packageJsonContent);
-
-    const srcDir = path.join(baseDir, "src");
-    fs.mkdirSync(srcDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(srcDir, "model.py"),
-      `# Machine Learning / Algorithmic Core for ${projectTitle}\nimport sys\n\ndef preprocess(data):\n    print("[Data Ingestion] Preprocessing dataset features...")\n    return {"processed": True, "samples": len(data) if isinstance(data, list) else 1}\n\ndef evaluate_cohort(cohort_id):\n    print(f"[Validation] Evaluating model accuracy for cohort {cohort_id}...")\n    return {"accuracy": 0.942, "f1_score": 0.931, "status": "VERIFIED"}\n\nif __name__ == "__main__":\n    print("Running baseline evaluation...")\n    result = evaluate_cohort("validation_100")\n    print("Evaluation Result:", result)\n`
-    );
-
-    fs.writeFileSync(
-      path.join(srcDir, "index.js"),
-      `// Main entrypoint for ${projectTitle}\nconsole.log("ResearchMesh Workspace initialized for ${projectTitle}");\nconsole.log("Status: Active. Ready for milestone contributions.");\n`
-    );
-
-    const testsDir = path.join(baseDir, "tests");
-    fs.mkdirSync(testsDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(testsDir, "test_runner.js"),
-      `// Automated Test Suite for ${projectTitle}\nconsole.log("PASS: Ingestion pipeline benchmark verified.");\nconsole.log("PASS: Output schema validation completed.");\nconsole.log("Test Suites: 2 passed, 2 total.");\nconsole.log("Tests: 5 passed, 5 total.");\n`
-    );
-  }
-  return baseDir;
-}
-
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -88,51 +83,66 @@ export async function GET(
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const admin = auth.admin;
+    await ensureBucket(admin);
+
     const { searchParams } = new URL(req.url);
     const requestedPath = searchParams.get("path");
 
-    const baseDir = getProjectWorkspaceDir(projectId, auth.project.title);
-
+    // Single file read
     if (requestedPath) {
-      // Prevent directory traversal attacks
-      const safePath = path.normalize(requestedPath).replace(/^(\.\.[\/\\])+/, "");
-      const fullPath = path.join(baseDir, safePath);
+      const safePath = path.normalize(requestedPath).replace(/^(\.\.[\/\\])+/, "").replace(/^\//, "");
+      const storageKey = `${projectId}/${safePath}`;
 
-      if (!fs.existsSync(fullPath)) {
+      const { data, error } = await admin.storage.from(BUCKET_NAME).download(storageKey);
+      if (error || !data) {
         return NextResponse.json({ error: "File not found" }, { status: 404 });
       }
 
-      const content = fs.readFileSync(fullPath, "utf-8");
+      const content = await data.text();
       return NextResponse.json({ path: safePath, content });
     }
 
-    // List all files recursively
-    function listFiles(dir: string, prefix = ""): any[] {
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
+    // List all files recursively from Supabase Storage
+    async function listStorageFiles(folder = ""): Promise<any[]> {
+      const prefix = folder ? `${projectId}/${folder}` : projectId;
+      const { data, error } = await admin.storage.from(BUCKET_NAME).list(prefix, {
+        limit: 100,
+        offset: 0,
+        sortBy: { column: "name", order: "asc" },
+      });
+
+      if (error || !data) return [];
+
       const result: any[] = [];
-      for (const entry of entries) {
-        if (entry.name.startsWith(".")) continue;
-        const relative = path.join(prefix, entry.name);
-        if (entry.isDirectory()) {
+      for (const item of data) {
+        if (!item.name || item.name === ".emptyFolderPlaceholder" || item.name.startsWith(".")) {
+          continue;
+        }
+        const relative = folder ? `${folder}/${item.name}` : item.name;
+
+        // In Supabase Storage, directory entries have no id and no metadata
+        if (!item.id && !item.metadata) {
+          const children = await listStorageFiles(relative);
           result.push({
-            name: entry.name,
+            name: item.name,
             path: relative,
             type: "directory",
-            children: listFiles(path.join(dir, entry.name), relative),
+            children,
           });
         } else {
           result.push({
-            name: entry.name,
+            name: item.name,
             path: relative,
             type: "file",
-            size: fs.statSync(path.join(dir, entry.name)).size,
+            size: item.metadata?.size || 0,
           });
         }
       }
       return result;
     }
 
-    const files = listFiles(baseDir);
+    const files = await listStorageFiles();
     return NextResponse.json({ files });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to load files" }, { status: 500 });
@@ -153,6 +163,9 @@ export async function POST(
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const admin = auth.admin;
+    await ensureBucket(admin);
+
     const body = await req.json();
     const { filePath, content } = body;
 
@@ -160,12 +173,21 @@ export async function POST(
       return NextResponse.json({ error: "filePath and content required" }, { status: 400 });
     }
 
-    const baseDir = getProjectWorkspaceDir(projectId, auth.project.title);
-    const safePath = path.normalize(filePath).replace(/^(\.\.[\/\\])+/, "");
-    const fullPath = path.join(baseDir, safePath);
+    const safePath = path.normalize(filePath).replace(/^(\.\.[\/\\])+/, "").replace(/^\//, "");
+    const storageKey = `${projectId}/${safePath}`;
 
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    fs.writeFileSync(fullPath, content, "utf-8");
+    const { error: uploadError } = await admin.storage.from(BUCKET_NAME).upload(
+      storageKey,
+      Buffer.from(content, "utf-8"),
+      {
+        contentType: getContentType(safePath),
+        upsert: true,
+      }
+    );
+
+    if (uploadError) {
+      return NextResponse.json({ error: uploadError.message || "Failed to save file" }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -175,5 +197,38 @@ export async function POST(
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to save file" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: projectId } = await params;
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
+
+    const auth = await authorizeWorkspace(token, projectId);
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const admin = auth.admin;
+    const { searchParams } = new URL(req.url);
+    const requestedPath = searchParams.get("path");
+
+    if (!requestedPath) {
+      return NextResponse.json({ error: "path required" }, { status: 400 });
+    }
+
+    const safePath = path.normalize(requestedPath).replace(/^(\.\.[\/\\])+/, "").replace(/^\//, "");
+    const storageKey = `${projectId}/${safePath}`;
+
+    await admin.storage.from(BUCKET_NAME).remove([storageKey]);
+
+    return NextResponse.json({ success: true, path: safePath });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Failed to delete file" }, { status: 500 });
   }
 }

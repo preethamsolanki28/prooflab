@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { exec } from "child_process";
 import crypto from "crypto";
 import path from "path";
+import os from "os";
 import fs from "fs";
 
 export async function POST(
@@ -40,10 +41,14 @@ export async function POST(
     }
 
     const trimmed = command.trim();
-    const workspaceDir = path.join(process.cwd(), ".workspaces", projectId);
+    const workspaceDir = path.join(os.tmpdir(), "workspaces", projectId);
 
-    if (!fs.existsSync(workspaceDir)) {
-      fs.mkdirSync(workspaceDir, { recursive: true });
+    try {
+      if (!fs.existsSync(workspaceDir)) {
+        fs.mkdirSync(workspaceDir, { recursive: true });
+      }
+    } catch {
+      // ignore in read-only / serverless environment
     }
 
     // Initialize git repository if not initialized yet

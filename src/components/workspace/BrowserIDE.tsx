@@ -262,9 +262,22 @@ export function BrowserIDE({
         const filesList: WorkspaceFile[] = data.files || [];
         setFiles(filesList);
 
-        // If no tabs are open, open src/model.py or README.md
-        if (openTabs.length === 0) {
-          openFileInTab("src/model.py");
+        // If no tabs are open, open the first available file in repository
+        if (openTabs.length === 0 && filesList.length > 0) {
+          const findFirst = (items: WorkspaceFile[]): string | null => {
+            for (const item of items) {
+              if (item.type === "file") return item.path;
+              if (item.children) {
+                const sub = findFirst(item.children);
+                if (sub) return sub;
+              }
+            }
+            return null;
+          };
+          const firstPath = findFirst(filesList);
+          if (firstPath) {
+            openFileInTab(firstPath);
+          }
         }
       }
     } catch {
@@ -297,7 +310,10 @@ export function BrowserIDE({
           originalContent: data.content ?? "",
           isDirty: false,
         };
-        setOpenTabs((prev) => [...prev, newTab]);
+        setOpenTabs((prev) => {
+          if (prev.some((t) => t.path === filePath)) return prev;
+          return [...prev, newTab];
+        });
         setActiveFilePath(filePath);
       }
     } catch {
@@ -863,7 +879,20 @@ export function BrowserIDE({
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-                  {renderFileTree(files)}
+                  {files.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-500 space-y-2">
+                      <p>No files yet.</p>
+                      <button
+                        onClick={() => setShowNewFileModal(true)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-md border border-emerald-200 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Create File
+                      </button>
+                    </div>
+                  ) : (
+                    renderFileTree(files)
+                  )}
                 </div>
               </div>
 
@@ -1640,7 +1669,7 @@ export function BrowserIDE({
                 <div className="flex justify-between">
                   <span>File:</span>
                   <span className="font-mono text-slate-900 font-semibold truncate max-w-[200px]">
-                    {activeFilePath || "src/model.py"}
+                    {activeFilePath || "Workspace changes"}
                   </span>
                 </div>
               </div>
