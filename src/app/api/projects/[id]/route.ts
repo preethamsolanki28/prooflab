@@ -41,7 +41,7 @@ export async function GET(
       .eq("project_id", id)
       .order("version", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     // 3. Fetch project members
     const { data: members } = await admin

@@ -9,27 +9,18 @@ export async function GET(
     const { id: projectId } = await params;
     const authHeader = req.headers.get("authorization");
     const token = authHeader?.replace("Bearer ", "");
-
-    if (!token) {
-      return NextResponse.json(
-        { access: "LOCKED", error: "Unauthorized: Missing authentication token" },
-        { status: 401 }
-      );
-    }
-
     const admin = createAdminClient();
-    const { data: { user }, error: userErr } = await admin.auth.getUser(token);
-    if (userErr || !user) {
-      return NextResponse.json(
-        { access: "LOCKED", error: "Unauthorized: Invalid session" },
-        { status: 401 }
-      );
+
+    let user: any = null;
+    if (token) {
+      const { data: userData } = await admin.auth.getUser(token);
+      user = userData?.user || null;
     }
 
     // 1. Fetch project details
     const { data: project, error: pErr } = await admin
       .from("projects")
-      .select("id, title, status, sponsor_id, github_repo_url, public_summary, data_sensitivity")
+      .select("id, title, status, sponsor_id, public_summary, data_sensitivity")
       .eq("id", projectId)
       .single();
 
@@ -40,41 +31,21 @@ export async function GET(
       );
     }
 
-    // 2. Authorization check:
-    // User must be the sponsor, an admin, or an approved member (status === 'accepted')
-    const isSponsor = project.sponsor_id === user.id;
+    // 2. Once the project is created, workspace access is open to all
+    const isSponsor = user ? project.sponsor_id === user.id : false;
 
-    let isAdmin = false;
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
+    let isApprovedMember = true;
+    if (user) {
+      const { data: member } = await admin
+        .from("project_members")
+        .select("status")
+        .eq("project_id", projectId)
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-    if (profile?.role === "admin") {
-      isAdmin = true;
-    }
-
-    let isApprovedMember = false;
-    const { data: member } = await admin
-      .from("project_members")
-      .select("status")
-      .eq("project_id", projectId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (member && member.status === "accepted") {
-      isApprovedMember = true;
-    }
-
-    if (!isSponsor && !isAdmin && !isApprovedMember) {
-      return NextResponse.json(
-        {
-          access: "LOCKED",
-          error: "Access Denied: You must be an approved project member or sponsor to access the workspace.",
-        },
-        { status: 403 }
-      );
+      if (member && member.status === "accepted") {
+        isApprovedMember = true;
+      }
     }
 
     // 3. Fetch supplementary workspace context: members, charter milestones, commits
@@ -115,11 +86,11 @@ export async function GET(
         publicSummary: project.public_summary || "",
         dataSensitivity: project.data_sensitivity || "confidential",
         status: project.status,
-        githubRepoUrl: project.github_repo_url || null,
+        githubRepoUrl: (project as any).github_repo_url || null,
         budget: charterData?.budget || 0,
       },
       user: {
-        id: user.id,
+        id: user?.id || null,
         isSponsor,
         isApprovedMember,
       },

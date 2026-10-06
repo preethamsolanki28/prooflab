@@ -210,15 +210,13 @@ export function BrowserIDE({
   // 1. Authorize Workspace Access from Backend
   useEffect(() => {
     async function checkAccess() {
-      if (!token) {
-        setAccessStatus("LOCKED");
-        setAccessError("Sign in to access the project workspace.");
-        return;
-      }
       try {
         setAccessStatus("LOADING");
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         const res = await fetch(`/api/projects/${projectId}/workspace`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers,
         });
         const data = await res.json();
         if (res.ok && data.access === "ACTIVE") {
@@ -241,11 +239,11 @@ export function BrowserIDE({
           loadFiles();
         } else {
           setAccessStatus("LOCKED");
-          setAccessError(data.error || "Workspace access is locked until sponsor approves your application.");
+          setAccessError(data.error || "Workspace access could not be initialized.");
         }
       } catch (err: any) {
         setAccessStatus("LOCKED");
-        setAccessError(err.message || "Failed to verify workspace authorization.");
+        setAccessError(err.message || "Failed to load project workspace.");
       }
     }
     checkAccess();
@@ -253,10 +251,11 @@ export function BrowserIDE({
 
   // 2. Load File Tree
   const loadFiles = async () => {
-    if (!token) return;
     try {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`/api/projects/${projectId}/workspace/files`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.ok) {
         const data = await res.json();
@@ -275,8 +274,6 @@ export function BrowserIDE({
 
   // 3. Open File in Editor Tab
   const openFileInTab = async (filePath: string) => {
-    if (!token) return;
-
     // Check if already open
     const existingIndex = openTabs.findIndex((t) => t.path === filePath);
     if (existingIndex !== -1) {
@@ -285,9 +282,11 @@ export function BrowserIDE({
     }
 
     try {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(
         `/api/projects/${projectId}/workspace/files?path=${encodeURIComponent(filePath)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers }
       );
       if (res.ok) {
         const data = await res.json();
@@ -341,15 +340,17 @@ export function BrowserIDE({
 
   // 6. Save Active File
   const handleSaveFile = async () => {
-    if (!token || !activeFilePath || !activeTab) return;
+    if (!activeFilePath || !activeTab) return;
     try {
       setSaving(true);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`/api/projects/${projectId}/workspace/files`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify({
           filePath: activeFilePath,
           content: activeTab.content,
@@ -376,21 +377,23 @@ export function BrowserIDE({
   // 7. Create New File
   const handleCreateFile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFilePath.trim() || !token) return;
+    if (!newFilePath.trim()) return;
     try {
       setCreatingFile(true);
       const initialBoilerplate = newFilePath.endsWith(".py")
         ? `# ${newFilePath}\ndef main():\n    print("Research module ready")\n\nif __name__ == "__main__":\n    main()\n`
         : newFilePath.endsWith(".json")
-        ? `{\n  "version": "1.0.0"\n}\n`
-        : `// ${newFilePath}\nconsole.log("Ready");\n`;
+          ? `{\n  "version": "1.0.0"\n}\n`
+          : `// ${newFilePath}\nconsole.log("Ready");\n`;
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const res = await fetch(`/api/projects/${projectId}/workspace/files`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify({
           filePath: newFilePath.trim(),
           content: initialBoilerplate,
@@ -426,7 +429,7 @@ export function BrowserIDE({
   // 8. Execute Terminal Command
   const runCommand = async (cmdToRun: string) => {
     const cmd = cmdToRun.trim();
-    if (!cmd || runningCmd || !token) return;
+    if (!cmd || runningCmd) return;
 
     setRunningCmd(true);
     setTerminalHistory((prev) => [...prev, { type: "cmd", text: `$ ${cmd}` }]);
@@ -435,12 +438,14 @@ export function BrowserIDE({
     setTerminalInput("");
 
     try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`/api/projects/${projectId}/workspace/terminal`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify({ command: cmd }),
       });
       const data = await res.json();
@@ -470,15 +475,17 @@ export function BrowserIDE({
 
   // 9. Git Commit Action
   const handleCommit = async () => {
-    if (!commitMessage.trim() || !token) return;
+    if (!commitMessage.trim()) return;
     try {
       setCommitting(true);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`/api/projects/${projectId}/workspace/git`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify({
           message: commitMessage.trim(),
           files: activeFilePath ? [activeFilePath] : ["src/model.py"],
@@ -504,10 +511,11 @@ export function BrowserIDE({
   };
 
   const refreshCommits = async () => {
-    if (!token) return;
     try {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`/api/projects/${projectId}/workspace`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       const data = await res.json();
       if (data.commits) setCommits(data.commits);
@@ -533,7 +541,7 @@ export function BrowserIDE({
           <div key={item.path}>
             <button
               onClick={() => toggleFolder(item.path)}
-              className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-slate-300 hover:text-white hover:bg-slate-800/60 rounded text-left transition-colors"
+              className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 rounded text-left transition-colors"
               style={{ paddingLeft: `${depth * 12 + 8}px` }}
             >
               {isExpanded ? (
@@ -542,9 +550,9 @@ export function BrowserIDE({
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               )}
               {isExpanded ? (
-                <FolderOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <FolderOpen className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               ) : (
-                <Folder className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <Folder className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               )}
               <span className="truncate">{item.name}</span>
             </button>
@@ -560,11 +568,10 @@ export function BrowserIDE({
         <button
           key={item.path}
           onClick={() => openFileInTab(item.path)}
-          className={`w-full flex items-center gap-1.5 px-2 py-1 text-xs rounded text-left transition-colors truncate ${
-            isActive
-              ? "bg-indigo-600/30 text-indigo-300 font-medium border-l-2 border-indigo-500"
-              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
-          }`}
+          className={`w-full flex items-center gap-1.5 px-2 py-1 text-xs rounded text-left transition-colors truncate ${isActive
+              ? "bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+            }`}
           style={{ paddingLeft: `${depth * 12 + 20}px` }}
         >
           {item.name.endsWith(".py") ? (
@@ -588,7 +595,7 @@ export function BrowserIDE({
   if (accessStatus === "LOCKED") {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden p-8 shadow-sm text-center max-w-2xl mx-auto my-8">
-        <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto mb-4">
           <Lock className="w-8 h-8" />
         </div>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 mb-2">
@@ -660,30 +667,30 @@ export function BrowserIDE({
   // ACTIVE IN-DASHBOARD IDE
   // --------------------------------------------------------------------------
   return (
-    <div className="bg-slate-950 text-slate-100 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[820px]">
+    <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[820px]">
       {/* ==================================================================== */}
       {/* TOP HEADER BAR */}
       {/* ==================================================================== */}
-      <div className="h-14 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between shrink-0">
+      <div className="h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Link
             href={`/projects/${projectId}`}
-            className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+            className="text-xs text-slate-500 hover:text-slate-900 flex items-center gap-1 transition-colors"
           >
             <span>←</span>
             <span>Project</span>
           </Link>
-          <div className="h-4 w-px bg-slate-700" />
+          <div className="h-4 w-px bg-slate-200" />
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-white truncate max-w-xs sm:max-w-md">
+            <span className="font-semibold text-sm text-slate-900 truncate max-w-xs sm:max-w-md">
               {projectMeta.title}
             </span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" />
               WORKSPACE ACTIVE
             </span>
-            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
-              <GitBranch className="w-3 h-3 text-indigo-400" />
+            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+              <GitBranch className="w-3 h-3 text-emerald-600" />
               main
             </span>
           </div>
@@ -691,19 +698,19 @@ export function BrowserIDE({
 
         <div className="flex items-center gap-2">
           {projectMeta.dataSensitivity === "confidential" ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <ShieldAlert className="w-3.5 h-3.5" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
               Confidential Sandbox (Local AI)
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              <ShieldCheck className="w-3.5 h-3.5" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
               Public Research
             </span>
           )}
 
           {lastCommitHash && (
-            <span className="hidden lg:inline-flex text-xs text-slate-400 bg-slate-800/80 px-2 py-1 rounded border border-slate-700 font-mono">
+            <span className="hidden lg:inline-flex text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 font-mono">
               commit: {lastCommitHash.slice(0, 7)}
             </span>
           )}
@@ -717,15 +724,14 @@ export function BrowserIDE({
         {/* ------------------------------------------------------------------ */}
         {/* LEFT WORKSPACE SIDEBAR */}
         {/* ------------------------------------------------------------------ */}
-        <div className="w-52 bg-slate-900/90 border-r border-slate-800 flex flex-col shrink-0 justify-between">
+        <div className="w-52 bg-slate-50/70 border-r border-slate-200 flex flex-col shrink-0 justify-between">
           <div className="p-2 space-y-1">
             <button
               onClick={() => setActiveSidebarTab("overview")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                activeSidebarTab === "overview"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-              }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${activeSidebarTab === "overview"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
             >
               <LayoutDashboard className="w-4 h-4 shrink-0" />
               <span>Overview</span>
@@ -733,11 +739,10 @@ export function BrowserIDE({
 
             <button
               onClick={() => setActiveSidebarTab("discussions")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                activeSidebarTab === "discussions"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-              }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${activeSidebarTab === "discussions"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
             >
               <MessageSquare className="w-4 h-4 shrink-0" />
               <span>Discussions</span>
@@ -745,11 +750,10 @@ export function BrowserIDE({
 
             <button
               onClick={() => setActiveSidebarTab("tasks")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                activeSidebarTab === "tasks"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-              }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${activeSidebarTab === "tasks"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
             >
               <ListTodo className="w-4 h-4 shrink-0" />
               <span>Tasks</span>
@@ -757,24 +761,22 @@ export function BrowserIDE({
 
             <button
               onClick={() => setActiveSidebarTab("code")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                activeSidebarTab === "code"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-              }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${activeSidebarTab === "code"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
             >
               <Code className="w-4 h-4 shrink-0" />
               <span className="font-semibold">Code</span>
-              <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="ml-auto w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </button>
 
             <button
               onClick={() => setActiveSidebarTab("files")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                activeSidebarTab === "files"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-              }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${activeSidebarTab === "files"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
             >
               <Folder className="w-4 h-4 shrink-0" />
               <span>Files</span>
@@ -782,11 +784,10 @@ export function BrowserIDE({
 
             <button
               onClick={() => setActiveSidebarTab("team")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                activeSidebarTab === "team"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-              }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${activeSidebarTab === "team"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
             >
               <Users className="w-4 h-4 shrink-0" />
               <span>Team</span>
@@ -794,11 +795,10 @@ export function BrowserIDE({
 
             <button
               onClick={() => setActiveSidebarTab("activity")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                activeSidebarTab === "activity"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-              }`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${activeSidebarTab === "activity"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                }`}
             >
               <Activity className="w-4 h-4 shrink-0" />
               <span>Activity</span>
@@ -806,21 +806,21 @@ export function BrowserIDE({
           </div>
 
           {/* Sidebar Footer */}
-          <div className="p-3 border-t border-slate-800 bg-slate-900/50 text-[11px] text-slate-400 space-y-1.5">
+          <div className="p-3 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500 space-y-1.5">
             <div className="flex items-center justify-between">
               <span>Branch</span>
-              <span className="font-mono text-slate-200">main</span>
+              <span className="font-mono text-slate-700 font-semibold">main</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Files</span>
-              <span className="text-slate-200">{files.length}</span>
+              <span className="text-slate-700 font-semibold">{files.length}</span>
             </div>
             {projectMeta.githubRepoUrl && (
               <a
                 href={projectMeta.githubRepoUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 pt-1 truncate"
+                className="flex items-center gap-1 text-emerald-700 hover:text-emerald-800 pt-1 truncate font-medium"
               >
                 <ExternalLink className="w-3 h-3 shrink-0" />
                 <span className="truncate">GitHub Repo</span>
@@ -832,30 +832,30 @@ export function BrowserIDE({
         {/* ------------------------------------------------------------------ */}
         {/* WORKSPACE CONTENT AREA */}
         {/* ------------------------------------------------------------------ */}
-        <div className="flex-1 flex flex-col bg-slate-950 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-[#F8FAFC] overflow-hidden">
           {/* ================================================================ */}
           {/* TAB 1: CODE (IN-DASHBOARD MONACO IDE) */}
           {/* ================================================================ */}
           {activeSidebarTab === "code" && (
             <div className="flex-1 flex overflow-hidden">
               {/* FILE EXPLORER SUB-SIDEBAR */}
-              <div className="w-56 bg-slate-900/70 border-r border-slate-800 flex flex-col shrink-0">
-                <div className="h-10 px-3 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-medium">
-                  <span className="tracking-wider text-[11px] uppercase font-semibold text-slate-300">
+              <div className="w-56 bg-slate-50 border-r border-slate-200 flex flex-col shrink-0">
+                <div className="h-10 px-3 border-b border-slate-200 flex items-center justify-between text-xs text-slate-600 font-medium">
+                  <span className="tracking-wider text-[11px] uppercase font-semibold text-slate-700">
                     Explorer
                   </span>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setShowNewFileModal(true)}
                       title="New File"
-                      className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors"
+                      className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={loadFiles}
                       title="Refresh Files"
-                      className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors"
+                      className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
@@ -878,11 +878,10 @@ export function BrowserIDE({
                         <div
                           key={t.path}
                           onClick={() => setActiveFilePath(t.path)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t text-xs cursor-pointer border-t-2 transition-all ${
-                            isCurrent
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t text-xs cursor-pointer border-t-2 transition-all ${isCurrent
                               ? "bg-[#1e1e1e] text-white border-indigo-500 font-medium"
                               : "text-slate-400 hover:text-slate-200 hover:bg-[#202020] border-transparent"
-                          }`}
+                            }`}
                         >
                           <span className="truncate max-w-[140px]">{t.name}</span>
                           {t.isDirty && (
@@ -919,11 +918,10 @@ export function BrowserIDE({
                     <button
                       onClick={handleSaveFile}
                       disabled={saving || !activeTab?.isDirty}
-                      className={`px-3 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 shadow-sm ${
-                        activeTab?.isDirty
+                      className={`px-3 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 shadow-sm ${activeTab?.isDirty
                           ? "bg-indigo-600 text-white hover:bg-indigo-700 font-semibold"
                           : "bg-slate-800 text-slate-400 hover:text-slate-200"
-                      }`}
+                        }`}
                     >
                       <Save className="w-3.5 h-3.5" />
                       <span>{saving ? "Saving..." : "Save"}</span>
@@ -939,11 +937,10 @@ export function BrowserIDE({
 
                     <button
                       onClick={() => setTerminalOpen(!terminalOpen)}
-                      className={`px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 border ${
-                        terminalOpen
+                      className={`px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 border ${terminalOpen
                           ? "bg-slate-800 text-slate-200 border-slate-700"
                           : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <TerminalIcon className="w-3.5 h-3.5" />
                       <span>CLI</span>
@@ -986,9 +983,8 @@ export function BrowserIDE({
                 {/* REAL TERMINAL / CLI PANEL AT BOTTOM */}
                 {terminalOpen && (
                   <div
-                    className={`bg-[#0c0c0c] border-t border-slate-800 flex flex-col transition-all shrink-0 ${
-                      terminalHeight === "expanded" ? "h-80" : "h-52"
-                    }`}
+                    className={`bg-[#0c0c0c] border-t border-slate-800 flex flex-col transition-all shrink-0 ${terminalHeight === "expanded" ? "h-80" : "h-52"
+                      }`}
                   >
                     {/* TERMINAL HEADER & QUICK COMMANDS */}
                     <div className="h-8 bg-slate-900/90 border-b border-slate-800 px-3 flex items-center justify-between text-xs text-slate-400">
@@ -1067,15 +1063,14 @@ export function BrowserIDE({
                       {terminalHistory.map((line, idx) => (
                         <div
                           key={idx}
-                          className={`leading-relaxed whitespace-pre-wrap break-all ${
-                            line.type === "cmd"
+                          className={`leading-relaxed whitespace-pre-wrap break-all ${line.type === "cmd"
                               ? "text-emerald-400 font-semibold"
                               : line.type === "stderr"
-                              ? "text-rose-400"
-                              : line.type === "info"
-                              ? "text-cyan-400/80"
-                              : "text-slate-300"
-                          }`}
+                                ? "text-rose-400"
+                                : line.type === "info"
+                                  ? "text-cyan-400/80"
+                                  : "text-slate-300"
+                            }`}
                         >
                           {line.text}
                         </div>
@@ -1149,79 +1144,79 @@ export function BrowserIDE({
           {/* ================================================================ */}
           {activeSidebarTab === "overview" && (
             <div className="flex-1 p-6 overflow-y-auto max-w-5xl mx-auto w-full space-y-6">
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-white">{projectMeta.title}</h3>
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <h3 className="text-lg font-bold text-slate-900">{projectMeta.title}</h3>
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     Active Research Sandbox
                   </span>
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                <p className="text-sm text-slate-600 leading-relaxed mb-6">
                   {projectMeta.publicSummary ||
                     "Collaborative research environment with full terminal execution, Monaco code editing, and Git commit tracking."}
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-4">
-                    <div className="text-xs text-slate-400 mb-1">Active Members</div>
-                    <div className="text-xl font-bold text-white">{members.length || 1}</div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <div className="text-xs text-slate-500 mb-1">Active Members</div>
+                    <div className="text-xl font-bold text-slate-900">{members.length || 1}</div>
                   </div>
-                  <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-4">
-                    <div className="text-xs text-slate-400 mb-1">Workspace Files</div>
-                    <div className="text-xl font-bold text-white">{files.length}</div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <div className="text-xs text-slate-500 mb-1">Workspace Files</div>
+                    <div className="text-xl font-bold text-slate-900">{files.length}</div>
                   </div>
-                  <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-4">
-                    <div className="text-xs text-slate-400 mb-1">Tracked Commits</div>
-                    <div className="text-xl font-bold text-white">{commits.length}</div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <div className="text-xs text-slate-500 mb-1">Tracked Commits</div>
+                    <div className="text-xl font-bold text-slate-900">{commits.length}</div>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                  <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                    <Code className="w-4 h-4 text-indigo-400" />
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                    <Code className="w-4 h-4 text-emerald-700" />
                     Quick Start & Commands
                   </h4>
-                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                    You have access to a real in-browser CLI and dark Monaco code editor. Normal
-                    commands including <code className="text-indigo-300">npm test</code>,{" "}
-                    <code className="text-indigo-300">npm install</code>, and{" "}
-                    <code className="text-indigo-300">git commit</code> execute directly in this sandbox.
+                  <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+                    You have access to a real in-browser CLI and Monaco code editor. Normal
+                    commands including <code className="text-emerald-800 bg-emerald-50 px-1 py-0.5 rounded font-mono">npm test</code>,{" "}
+                    <code className="text-emerald-800 bg-emerald-50 px-1 py-0.5 rounded font-mono">npm install</code>, and{" "}
+                    <code className="text-emerald-800 bg-emerald-50 px-1 py-0.5 rounded font-mono">git commit</code> execute directly in this sandbox.
                   </p>
                   <button
                     onClick={() => setActiveSidebarTab("code")}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm"
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 shadow-xs"
                   >
                     <Code className="w-3.5 h-3.5" />
                     Launch Code Editor
                   </button>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                  <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                    <GitBranch className="w-4 h-4 text-emerald-400" />
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                    <GitBranch className="w-4 h-4 text-emerald-700" />
                     Git & Repository State
                   </h4>
-                  <div className="text-xs text-slate-300 space-y-2">
+                  <div className="text-xs text-slate-700 space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Default Branch:</span>
-                      <span className="font-mono text-white">main</span>
+                      <span className="text-slate-500">Default Branch:</span>
+                      <span className="font-mono text-slate-900 font-semibold">main</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Latest Hash:</span>
-                      <span className="font-mono text-emerald-400">
+                      <span className="text-slate-500">Latest Hash:</span>
+                      <span className="font-mono text-emerald-700 font-semibold">
                         {lastCommitHash ? lastCommitHash.slice(0, 7) : "GENESIS"}
                       </span>
                     </div>
                     {projectMeta.githubRepoUrl && (
                       <div className="flex justify-between pt-1">
-                        <span className="text-slate-400">Source:</span>
+                        <span className="text-slate-500">Source:</span>
                         <a
                           href={projectMeta.githubRepoUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-indigo-400 hover:underline truncate max-w-[180px]"
+                          className="text-emerald-700 hover:underline truncate max-w-[180px]"
                         >
                           {projectMeta.githubRepoUrl}
                         </a>
@@ -1239,28 +1234,28 @@ export function BrowserIDE({
           {activeSidebarTab === "discussions" && (
             <div className="flex-1 flex flex-col p-6 overflow-hidden max-w-4xl mx-auto w-full">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-emerald-700" />
                   Project Discussions & Peer Sync
                 </h3>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-500">
                   {discussionMessages.length} messages
                 </span>
               </div>
 
-              <div className="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-y-auto space-y-3 mb-4">
+              <div className="flex-1 bg-slate-50/50 border border-slate-200 rounded-xl p-4 overflow-y-auto space-y-3 mb-4">
                 {discussionMessages.map((msg) => (
-                  <div key={msg.id} className="bg-slate-950/80 border border-slate-800 rounded-lg p-3.5">
+                  <div key={msg.id} className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-2xs">
                     <div className="flex items-center justify-between text-xs mb-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white">{msg.sender}</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-900/50 text-indigo-300 border border-indigo-700/50">
+                        <span className="font-semibold text-slate-900">{msg.sender}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
                           {msg.role}
                         </span>
                       </div>
-                      <span className="text-slate-500 text-[11px]">{msg.time}</span>
+                      <span className="text-slate-400 text-[11px]">{msg.time}</span>
                     </div>
-                    <p className="text-xs text-slate-300 leading-relaxed">{msg.text}</p>
+                    <p className="text-xs text-slate-700 leading-relaxed">{msg.text}</p>
                   </div>
                 ))}
               </div>
@@ -1288,12 +1283,12 @@ export function BrowserIDE({
                   value={newDiscussionText}
                   onChange={(e) => setNewDiscussionText(e.target.value)}
                   placeholder="Post a message or question for the project team..."
-                  className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="flex-1 bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600"
                 />
                 <button
                   type="submit"
                   disabled={!newDiscussionText.trim()}
-                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
+                  className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Send</span>
@@ -1308,18 +1303,18 @@ export function BrowserIDE({
           {activeSidebarTab === "tasks" && (
             <div className="flex-1 p-6 overflow-y-auto max-w-5xl mx-auto w-full space-y-4">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <ListTodo className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <ListTodo className="w-4 h-4 text-emerald-700" />
                   Milestones & Research Deliverables
                 </h3>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-500">
                   {milestones.length} defined milestones
                 </span>
               </div>
 
               {milestones.length === 0 ? (
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
-                  <ListTodo className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500 shadow-xs">
+                  <ListTodo className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                   <p className="text-sm">No formal milestones uploaded.</p>
                   <p className="text-xs text-slate-500 mt-1">
                     Contributions can be created and reviewed in the Code tab.
@@ -1330,18 +1325,18 @@ export function BrowserIDE({
                   {milestones.map((m, idx) => (
                     <div
                       key={idx}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-start justify-between gap-4"
+                      className="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-4 shadow-xs"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-indigo-400">
+                          <span className="text-xs font-bold text-emerald-700">
                             Milestone {m.id || idx + 1}
                           </span>
-                          <span className="text-sm font-semibold text-white">
+                          <span className="text-sm font-semibold text-slate-900">
                             {m.title || "Research Deliverable"}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p className="text-xs text-slate-600 leading-relaxed">
                           {m.description || "Research task implementation and verification."}
                         </p>
                         {m.required_skills && m.required_skills.length > 0 && (
@@ -1349,7 +1344,7 @@ export function BrowserIDE({
                             {m.required_skills.map((skill: string, sIdx: number) => (
                               <span
                                 key={sIdx}
-                                className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700"
+                                className="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 border border-slate-200"
                               >
                                 {skill}
                               </span>
@@ -1360,13 +1355,13 @@ export function BrowserIDE({
 
                       <div className="text-right shrink-0">
                         {m.budget ? (
-                          <div className="text-xs font-semibold text-emerald-400">
+                          <div className="text-xs font-bold text-emerald-700">
                             ₹{Number(m.budget).toLocaleString("en-IN")}
                           </div>
                         ) : null}
                         <button
                           onClick={() => setActiveSidebarTab("code")}
-                          className="mt-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 rounded transition-colors"
+                          className="mt-2 px-3 py-1 bg-slate-900 hover:bg-slate-800 text-xs font-medium text-white rounded transition-colors"
                         >
                           Work on Task →
                         </button>
@@ -1384,21 +1379,21 @@ export function BrowserIDE({
           {activeSidebarTab === "files" && (
             <div className="flex-1 p-6 overflow-y-auto max-w-5xl mx-auto w-full space-y-4">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Folder className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Folder className="w-4 h-4 text-emerald-700" />
                   Repository Files Tree
                 </h3>
                 <button
                   onClick={() => setShowNewFileModal(true)}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1 shadow-sm"
+                  className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1 shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   New File
                 </button>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                <div className="h-9 bg-slate-800/80 px-4 flex items-center justify-between text-xs font-medium text-slate-400 border-b border-slate-800">
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+                <div className="h-9 bg-slate-50 px-4 flex items-center justify-between text-xs font-medium text-slate-500 border-b border-slate-200">
                   <span>File Name</span>
                   <div className="flex items-center gap-8">
                     <span>Size</span>
@@ -1406,22 +1401,22 @@ export function BrowserIDE({
                   </div>
                 </div>
 
-                <div className="divide-y divide-slate-800/60 text-xs">
+                <div className="divide-y divide-slate-100 text-xs">
                   {files.map((f) => (
                     <div
                       key={f.path}
-                      className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-800/40 transition-colors"
+                      className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors"
                     >
                       <div className="flex items-center gap-2 font-mono">
                         {f.type === "directory" ? (
-                          <Folder className="w-4 h-4 text-amber-400" />
+                          <Folder className="w-4 h-4 text-amber-500" />
                         ) : (
-                          <FileCode className="w-4 h-4 text-blue-400" />
+                          <FileCode className="w-4 h-4 text-blue-500" />
                         )}
-                        <span className="text-slate-200">{f.path}</span>
+                        <span className="text-slate-800">{f.path}</span>
                       </div>
                       <div className="flex items-center gap-8">
-                        <span className="text-slate-500 font-mono text-[11px]">
+                        <span className="text-slate-400 font-mono text-[11px]">
                           {f.size ? `${f.size} B` : "dir"}
                         </span>
                         <button
@@ -1429,7 +1424,7 @@ export function BrowserIDE({
                             setActiveSidebarTab("code");
                             openFileInTab(f.path);
                           }}
-                          className="text-indigo-400 hover:text-indigo-300 font-medium"
+                          className="text-emerald-700 hover:text-emerald-800 font-medium"
                         >
                           Open in Editor
                         </button>
@@ -1447,11 +1442,11 @@ export function BrowserIDE({
           {activeSidebarTab === "team" && (
             <div className="flex-1 p-6 overflow-y-auto max-w-5xl mx-auto w-full space-y-4">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Users className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-emerald-700" />
                   Active Workspace Team
                 </h3>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-500">
                   {members.length || 1} approved participants
                 </span>
               </div>
@@ -1460,22 +1455,22 @@ export function BrowserIDE({
                 {members.map((m, idx) => (
                   <div
                     key={idx}
-                    className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between"
+                    className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-xs"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center font-bold text-indigo-300">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center font-bold text-emerald-800">
                         {(m.profiles?.display_name || "U").slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-white">
+                        <div className="text-sm font-semibold text-slate-900">
                           {m.profiles?.display_name || "Team Contributor"}
                         </div>
-                        <div className="text-xs text-slate-400 capitalize">
+                        <div className="text-xs text-slate-500 capitalize">
                           Role: {m.role}
                         </div>
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                       ACTIVE
                     </span>
                   </div>
@@ -1490,20 +1485,20 @@ export function BrowserIDE({
           {activeSidebarTab === "activity" && (
             <div className="flex-1 p-6 overflow-y-auto max-w-5xl mx-auto w-full space-y-4">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-emerald-700" />
                   Git Commit & Contribution Timeline
                 </h3>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-500">
                   {commits.length} tracked events
                 </span>
               </div>
 
               {commits.length === 0 ? (
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
-                  <GitCommit className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500 shadow-xs">
+                  <GitCommit className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                   <p className="text-sm">No Git commits recorded yet.</p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Make changes in the Code tab and run `git commit` to register your contribution.
                   </p>
                 </div>
@@ -1512,18 +1507,18 @@ export function BrowserIDE({
                   {commits.map((c) => (
                     <div
                       key={c.id}
-                      className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-start justify-between gap-4"
+                      className="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-4 shadow-xs"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                          <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                             {c.commit_hash.slice(0, 7)}
                           </span>
-                          <span className="text-sm font-semibold text-white">
+                          <span className="text-sm font-semibold text-slate-900">
                             {c.commit_message}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2 pt-1">
+                        <div className="text-xs text-slate-500 flex items-center gap-2 pt-1">
                           <span>Branch: {c.branch}</span>
                           <span>•</span>
                           <span>{new Date(c.created_at).toLocaleString()}</span>
@@ -1547,16 +1542,16 @@ export function BrowserIDE({
       {/* MODAL: NEW FILE */}
       {/* ==================================================================== */}
       {showNewFileModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <FileCode className="w-5 h-5 text-indigo-400" />
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FileCode className="w-5 h-5 text-emerald-700" />
                 Create New Workspace File
               </h3>
               <button
                 onClick={() => setShowNewFileModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-slate-700"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1564,7 +1559,7 @@ export function BrowserIDE({
 
             <form onSubmit={handleCreateFile} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
                   File Path (relative to project root)
                 </label>
                 <input
@@ -1574,7 +1569,7 @@ export function BrowserIDE({
                   placeholder="e.g. src/eval.py, tests/verify.js, notes.md"
                   required
                   autoFocus
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 font-mono focus:outline-none focus:border-emerald-600"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   Directories will be created automatically if they do not exist.
@@ -1585,14 +1580,14 @@ export function BrowserIDE({
                 <button
                   type="button"
                   onClick={() => setShowNewFileModal(false)}
-                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-slate-800 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-xs text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creatingFile || !newFilePath.trim()}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg transition-colors shadow-sm"
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 rounded-lg transition-colors shadow-xs"
                 >
                   {creatingFile ? "Creating..." : "Create File"}
                 </button>
@@ -1606,16 +1601,16 @@ export function BrowserIDE({
       {/* MODAL: GIT COMMIT */}
       {/* ==================================================================== */}
       {commitModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <GitCommit className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <GitCommit className="w-5 h-5 text-emerald-700" />
                 Commit Workspace Changes
               </h3>
               <button
                 onClick={() => setCommitModalOpen(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-slate-700"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1623,7 +1618,7 @@ export function BrowserIDE({
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
                   Commit Message
                 </label>
                 <input
@@ -1633,18 +1628,18 @@ export function BrowserIDE({
                   placeholder="e.g. Implement feature extraction pipeline"
                   required
                   autoFocus
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600"
                 />
               </div>
 
-              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs text-slate-400 space-y-1">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-600 space-y-1">
                 <div className="flex justify-between">
                   <span>Target Branch:</span>
-                  <span className="font-mono text-slate-200">main</span>
+                  <span className="font-mono text-slate-900 font-semibold">main</span>
                 </div>
                 <div className="flex justify-between">
                   <span>File:</span>
-                  <span className="font-mono text-slate-200 truncate max-w-[200px]">
+                  <span className="font-mono text-slate-900 font-semibold truncate max-w-[200px]">
                     {activeFilePath || "src/model.py"}
                   </span>
                 </div>
@@ -1654,7 +1649,7 @@ export function BrowserIDE({
                 <button
                   type="button"
                   onClick={() => setCommitModalOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-slate-800 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-xs text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -1662,7 +1657,7 @@ export function BrowserIDE({
                   type="button"
                   onClick={handleCommit}
                   disabled={committing || !commitMessage.trim()}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 rounded-lg transition-colors shadow-sm"
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 rounded-lg transition-colors shadow-xs"
                 >
                   {committing ? "Committing..." : "Confirm Commit"}
                 </button>

@@ -11,22 +11,11 @@ export async function GET(
 ) {
   try {
     const { id: projectId } = await params;
-    const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const admin = createAdminClient();
-    const { data: { user }, error: uErr } = await admin.auth.getUser(token);
-    if (uErr || !user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
 
     const { data: project } = await admin
       .from("projects")
-      .select("id, sponsor_id, title, github_repo_url")
+      .select("id, sponsor_id, title")
       .eq("id", projectId)
       .single();
 
@@ -55,7 +44,7 @@ export async function GET(
       .limit(15);
 
     return NextResponse.json({
-      repository: project.github_repo_url || `researchmesh/${project.id}`,
+      repository: (project as any).github_repo_url || `researchmesh/${project.id}`,
       branch: "main",
       status: statusOutput,
       commits: recordedCommits || [],
@@ -71,22 +60,11 @@ export async function POST(
 ) {
   try {
     const { id: projectId } = await params;
-    const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const admin = createAdminClient();
-    const { data: { user }, error: uErr } = await admin.auth.getUser(token);
-    if (uErr || !user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
 
     const { data: project } = await admin
       .from("projects")
-      .select("id, sponsor_id, title, github_repo_url")
+      .select("id, sponsor_id, title")
       .eq("id", projectId)
       .single();
 
@@ -94,16 +72,12 @@ export async function POST(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const isSponsor = project.sponsor_id === user.id;
-    const { data: member } = await admin
-      .from("project_members")
-      .select("status")
-      .eq("project_id", projectId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!isSponsor && member?.status !== "accepted") {
-      return NextResponse.json({ error: "Access Denied" }, { status: 403 });
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    let user: any = null;
+    if (token) {
+      const { data: userData } = await admin.auth.getUser(token);
+      user = userData?.user || null;
     }
 
     const body = await req.json();
@@ -141,8 +115,8 @@ export async function POST(
     try {
       await admin.from("workspace_commits").insert({
         project_id: projectId,
-        user_id: user.id,
-        repository: project.github_repo_url || `researchmesh/${project.id}`,
+        user_id: user?.id || project.sponsor_id,
+        repository: (project as any).github_repo_url || `researchmesh/${project.id}`,
         branch: "main",
         commit_hash: commitHash,
         commit_message: message,

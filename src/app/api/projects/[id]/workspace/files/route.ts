@@ -3,12 +3,9 @@ import { createAdminClient } from "@/lib/supabase/server";
 import fs from "fs";
 import path from "path";
 
-// Verify active workspace membership
+// Verify workspace existence and optional user session
 async function authorizeWorkspace(token: string | null | undefined, projectId: string) {
-  if (!token) return { error: "Missing token", status: 401 };
   const admin = createAdminClient();
-  const { data: { user }, error: uErr } = await admin.auth.getUser(token);
-  if (uErr || !user) return { error: "Invalid token", status: 401 };
 
   const { data: project } = await admin
     .from("projects")
@@ -18,27 +15,10 @@ async function authorizeWorkspace(token: string | null | undefined, projectId: s
 
   if (!project) return { error: "Project not found", status: 404 };
 
-  const isSponsor = project.sponsor_id === user.id;
-
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const isAdmin = profile?.role === "admin";
-
-  const { data: member } = await admin
-    .from("project_members")
-    .select("status")
-    .eq("project_id", projectId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const isApproved = member?.status === "accepted";
-
-  if (!isSponsor && !isAdmin && !isApproved) {
-    return { error: "Access Denied: Not an approved project member", status: 403 };
+  let user: any = null;
+  if (token) {
+    const { data: userData } = await admin.auth.getUser(token);
+    user = userData?.user || null;
   }
 
   return { user, project, admin };

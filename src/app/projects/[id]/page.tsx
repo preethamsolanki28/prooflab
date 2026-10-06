@@ -757,7 +757,7 @@ export default function ProjectDetailPage({
                 You have been invited to join this project by the sponsor!
               </div>
               <p className="text-xs text-indigo-800/90 mt-0.5">
-                The sponsor has selected your profile and invited you to collaborate. Accept the invitation to access the workspace, charter, and confidential project brief.
+                The sponsor has selected your profile and invited you to collaborate. Accept the invitation to join the official team roster, charter, and confidential project brief.
               </p>
             </div>
           </div>
@@ -809,11 +809,7 @@ export default function ProjectDetailPage({
           >
             <Code className="w-4 h-4" />
             Workspace
-            {isApprovedMember || isSponsor ? (
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            ) : (
-              <Lock className="w-3 h-3 text-slate-400" />
-            )}
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
           </button>
 
           {/* Tab 3: Work & Earnings */}
