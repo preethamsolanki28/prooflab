@@ -51,6 +51,7 @@ export interface CopilotRunParams {
 export interface CopilotRunResult {
   output: string;
   aiProvider: "cloud" | "local";
+  provider?: "openrouter" | "local";
   dataClassification: DataClassification;
   routeBadge: string;
   humanOwner: {
@@ -202,6 +203,7 @@ export async function runResearchCopilot(params: CopilotRunParams): Promise<Copi
     return {
       output: securityViolation,
       aiProvider: "local",
+      provider: "local",
       dataClassification: "CONFIDENTIAL",
       routeBadge: "CONFIDENTIAL DATA → LOCAL AI",
       humanOwner: { id: params.ownerId, name: params.ownerName },
@@ -216,18 +218,19 @@ export async function runResearchCopilot(params: CopilotRunParams): Promise<Copi
   const context = await getProjectContext(params.projectId, params.userToken);
 
   // 3. Determine Classification:
-  // If explicitly flagged, or if project is confidential, or if user prompt contains confidential keywords
   const promptLower = params.task.toLowerCase();
-  const hasConfidentialSignals =
-    params.classification === "CONFIDENTIAL" ||
-    context.data_sensitivity === "confidential" ||
-    promptLower.includes("confidential") ||
-    promptLower.includes("private") ||
-    promptLower.includes("patient") ||
-    promptLower.includes("proprietary") ||
-    promptLower.includes("secret");
-
-  const classification: DataClassification = hasConfidentialSignals ? "CONFIDENTIAL" : "PUBLIC";
+  // Respect explicit user selection ("PUBLIC" or "CONFIDENTIAL"). If not specified, infer from project context.
+  let classification: DataClassification;
+  if (params.classification === "PUBLIC" || params.classification === "CONFIDENTIAL") {
+    classification = params.classification;
+  } else {
+    const hasConfidentialSignals =
+      context.data_sensitivity === "confidential" ||
+      promptLower.includes("confidential") ||
+      promptLower.includes("proprietary") ||
+      promptLower.includes("secret");
+    classification = hasConfidentialSignals ? "CONFIDENTIAL" : "PUBLIC";
+  }
 
   // Check if user is asking to draft contribution summary (Tool 2)
   const isDraftRequest =
@@ -322,6 +325,7 @@ ${routeResult.output}`
   return {
     output: finalOutput,
     aiProvider: aiProviderLabel,
+    provider: routeResult.provider as "openrouter" | "local",
     dataClassification: classification,
     routeBadge: routeResult.routeBadge,
     humanOwner: {
