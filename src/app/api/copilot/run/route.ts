@@ -44,6 +44,64 @@ export async function POST(req: NextRequest) {
         ? classification
         : undefined;
 
+    // SECTION 12 & 23: Enforce strict sponsor-granted private AI access for CONFIDENTIAL data
+    if (validClassification === "CONFIDENTIAL") {
+      const { data: proj } = await admin
+        .from("projects")
+        .select("id, sponsor_id")
+        .eq("id", projectId)
+        .single();
+
+      if (!proj) {
+        return NextResponse.json({ error: "Project not found." }, { status: 404 });
+      }
+
+      const isSponsor = proj.sponsor_id === user.id || profile?.role === "admin";
+
+      if (!isSponsor) {
+        // Verify active membership and explicit private-AI permission
+        const { data: member } = await admin
+          .from("project_members")
+          .select("status, can_use_private_ai")
+          .eq("project_id", projectId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!member || member.status !== "accepted") {
+          return NextResponse.json(
+            {
+              error: "ACCESS_DENIED: User is not an active member of this project.",
+              code: "ACCESS_DENIED",
+            },
+            { status: 403 }
+          );
+        }
+
+        if (!member.can_use_private_ai) {
+          // Check explicit grant table as fallback
+          const { data: grant } = await admin
+            .from("project_private_ai_access")
+            .select("status, revoked_at")
+            .eq("project_id", projectId)
+            .eq("member_id", user.id)
+            .eq("status", "granted")
+            .is("revoked_at", null)
+            .maybeSingle();
+
+          if (!grant) {
+            return NextResponse.json(
+              {
+                error:
+                  "ACCESS_DENIED: Confidential local AI access has not been granted by the project sponsor.",
+                code: "ACCESS_DENIED",
+              },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
+
     // Execute ResearchCopilot with server-derived authenticated human owner
     const result = await runResearchCopilot({
       projectId,

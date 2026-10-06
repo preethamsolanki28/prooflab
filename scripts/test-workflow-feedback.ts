@@ -21,24 +21,51 @@ if (!SERVICE_KEY || !ANON_KEY) {
 const adminClient = createAdminClient();
 const anonClient = createClient(SUPABASE_URL, ANON_KEY);
 
-async function loginUser(email: string, password = "Password123!") {
-  const { data, error } = await anonClient.auth.signInWithPassword({ email, password });
-  if (error || !data.session) {
-    throw new Error(`Failed to login ${email}: ${error?.message}`);
+async function loginUser(email: string, password = "Password123!", role = "student", displayName = "") {
+  let session = (await anonClient.auth.signInWithPassword({ email, password })).data;
+  if (!session?.user || !session?.session) {
+    const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { role, display_name: displayName || email },
+    });
+    if (createErr && !createErr.message.includes("already registered")) {
+      throw new Error(`Failed to create test user ${email}: ${createErr.message}`);
+    }
+    const userId = created?.user?.id;
+    if (userId) {
+      await adminClient.from("profiles").upsert(
+        {
+          id: userId,
+          display_name: displayName || email,
+          role,
+          skills: ["Machine Learning", "Python", "Data Analysis"],
+          verified: true,
+        },
+        { onConflict: "id" }
+      );
+    }
+    const retry = await anonClient.auth.signInWithPassword({ email, password });
+    if (retry.error || !retry.data.session) {
+      throw new Error(`Failed to login ${email}: ${retry.error?.message}`);
+    }
+    session = retry.data;
   }
+
   const { data: profile } = await adminClient
     .from("profiles")
     .select("id, role, display_name")
-    .eq("id", data.user.id)
+    .eq("id", session.user!.id)
     .single();
 
   return {
-    id: data.user.id,
+    id: session.user!.id,
     email,
-    role: profile?.role || "student",
+    role: profile?.role || role,
     displayName: profile?.display_name || email,
-    token: data.session.access_token,
-    client: createScopedUserClient(data.session.access_token),
+    token: session.session!.access_token,
+    client: createScopedUserClient(session.session!.access_token),
   };
 }
 
@@ -512,6 +539,26 @@ async function runWorkflowTestSuite() {
       isRlsPrivacyIntact,
       "Non-member strictly receives 0 rows from confidential briefs under PostgreSQL RLS"
     );
+
+    // Clean up test records to preserve empty pristine database
+    try {
+      if (project?.id) {
+        await adminClient.from("project_feedback").delete().eq("project_id", project.id);
+        await adminClient.from("notifications").delete().eq("project_id", project.id);
+        await adminClient.from("project_applications").delete().eq("project_id", project.id);
+        await adminClient.from("project_members").delete().eq("project_id", project.id);
+        await adminClient.from("project_private_briefs").delete().eq("project_id", project.id);
+        await adminClient.from("projects").delete().eq("id", project.id);
+      }
+      for (const u of [sponsor, studentA, studentB, expert]) {
+        if (u?.id) {
+          await adminClient.from("profiles").delete().eq("id", u.id);
+          await adminClient.auth.admin.deleteUser(u.id);
+        }
+      }
+    } catch {
+      // ignore cleanup errors
+    }
 
     console.log("\n==================================================");
     console.log(`WORKFLOW TEST SUITE SUMMARY: ${passed} PASSED, ${failed} FAILED (Total: 18/18)`);

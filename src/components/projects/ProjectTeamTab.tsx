@@ -14,6 +14,8 @@ import {
   Clock,
   Send,
   Flag,
+  Lock,
+  ShieldAlert,
 } from "lucide-react";
 import DisputesSection from "@/components/m3/DisputesSection";
 
@@ -34,6 +36,7 @@ interface ProjectTeamTabProps {
     role: string;
     status: string;
     joined_at: string;
+    can_use_private_ai?: boolean;
     profiles?: {
       display_name: string;
     };
@@ -74,6 +77,62 @@ export function ProjectTeamTab({
 
   // Reviewing application state
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+
+  // Private AI Access State (Section 12 & 14)
+  const [privateAiAccess, setPrivateAiAccess] = useState<Record<string, boolean>>({});
+  const [togglingAiMember, setTogglingAiMember] = useState<string | null>(null);
+  const [aiAccessMessage, setAiAccessMessage] = useState<string | null>(null);
+
+  const fetchPrivateAiAccess = React.useCallback(async () => {
+    if (!session?.access_token || !project.id) return;
+    try {
+      const res = await fetch(`/api/projects/${project.id}/private-ai-access`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setPrivateAiAccess(d.accessMap || {});
+      }
+    } catch {
+      // silent
+    }
+  }, [session, project.id]);
+
+  React.useEffect(() => {
+    fetchPrivateAiAccess();
+  }, [fetchPrivateAiAccess]);
+
+  const handleTogglePrivateAi = async (memberId: string, action: "grant" | "revoke") => {
+    if (!session?.access_token) return;
+    try {
+      setTogglingAiMember(memberId);
+      setAiAccessMessage(null);
+      const res = await fetch(`/api/projects/${project.id}/private-ai-access`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ memberId, action }),
+      });
+      if (res.ok) {
+        setPrivateAiAccess((prev) => ({
+          ...prev,
+          [memberId]: action === "grant",
+        }));
+        setAiAccessMessage(
+          action === "grant"
+            ? "Confidential AI access granted."
+            : "Confidential AI access revoked."
+        );
+        onRefresh();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setTogglingAiMember(null);
+    }
+  };
 
   const isSponsorOrAdmin =
     project.sponsor_id === user?.id || profile?.role === "admin";
@@ -239,10 +298,94 @@ export function ProjectTeamTab({
               <p className="text-[11px] text-slate-500 mt-0.5">
                 Joined {new Date(m.joined_at).toLocaleDateString()}
               </p>
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-200/60 text-[10px]">
+                <span className="text-slate-500">Private AI:</span>
+                {Boolean(privateAiAccess[m.user_id] ?? m.can_use_private_ai) ? (
+                  <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                    Granted
+                  </span>
+                ) : (
+                  <span className="text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                    Denied (Default)
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* 1.5 CONFIDENTIAL AI ACCESS (SPONSOR CONTROL) */}
+      {isSponsorOrAdmin && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Lock className="h-4 w-4 text-emerald-700" />
+                Confidential AI Access
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Explicitly grant or revoke access to the confidential local model (Ollama). Normal members cannot communicate with private AI unless granted below.
+              </p>
+            </div>
+            {aiAccessMessage && (
+              <span className="text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 font-medium">
+                {aiAccessMessage}
+              </span>
+            )}
+          </div>
+
+          {acceptedMembers.filter((m) => m.user_id !== project.sponsor_id).length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
+              No student team members have joined this project yet.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {acceptedMembers
+                .filter((m) => m.user_id !== project.sponsor_id)
+                .map((m) => {
+                  const hasAccess = Boolean(privateAiAccess[m.user_id] ?? m.can_use_private_ai);
+                  return (
+                    <div key={m.user_id} className="py-3.5 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">
+                          {m.profiles?.display_name || "Student Researcher"}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] text-slate-500">Private AI Access:</span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                              hasAccess
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : "bg-slate-100 text-slate-600 border-slate-200"
+                            }`}
+                          >
+                            {hasAccess ? "ON" : "OFF"}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleTogglePrivateAi(m.user_id, hasAccess ? "revoke" : "grant")}
+                        disabled={togglingAiMember === m.user_id}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                          hasAccess
+                            ? "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                            : "bg-emerald-700 text-white hover:bg-emerald-800"
+                        }`}
+                      >
+                        {togglingAiMember === m.user_id
+                          ? "Updating..."
+                          : hasAccess
+                          ? "Revoke Access"
+                          : "Grant Access"}
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 2. EXPERT REVIEW PANEL: PENDING APPLICATIONS */}
       {canReviewApplications && (

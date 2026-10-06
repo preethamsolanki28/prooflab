@@ -427,6 +427,7 @@ export default function HomePage() {
   const myProjects = data?.myProjects || [];
   const myApplications = data?.myApplications || [];
   const recentActivity = data?.recentActivity || [];
+  const availableProjects = data?.availableProjects || [];
   const earningsSummary = data?.earningsSummary || {
     yourCredits: 0,
     totalCredits: 0,
@@ -578,6 +579,64 @@ export default function HomePage() {
                       <div>
                         {renderApplicationStatusBadge(app.status)}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 3: Available Projects (Section 15) */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Available Projects</h2>
+                <p className="text-[11px] text-slate-500">Open research projects open for applications</p>
+              </div>
+              <Link href="/projects" className="text-xs font-semibold text-emerald-700 hover:underline">
+                Explore all &rarr;
+              </Link>
+            </div>
+
+            <div className="mt-3">
+              {availableProjects.length === 0 ? (
+                <div className="py-8 text-center text-slate-400">
+                  <p className="text-xs">No open research projects found.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {availableProjects.map((proj: any) => (
+                    <div
+                      key={proj.id}
+                      className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <Link
+                          href={`/projects/${proj.id}`}
+                          className="text-xs font-bold text-slate-900 hover:text-emerald-700 transition-colors"
+                        >
+                          {proj.title}
+                        </Link>
+                        <p className="text-[11px] text-slate-500 line-clamp-1">
+                          {proj.public_summary}
+                        </p>
+                        <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                          <span>
+                            Sponsor: <strong className="text-slate-700">{proj.sponsor?.display_name || "Sponsor"}</strong>
+                          </span>
+                          {proj.budget > 0 && (
+                            <span>
+                              Budget: <strong className="text-slate-700">₹{Number(proj.budget).toLocaleString()}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Link
+                        href={`/projects/${proj.id}`}
+                        className="rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors shrink-0 self-start sm:self-center"
+                      >
+                        View Project
+                      </Link>
                     </div>
                   ))}
                 </div>

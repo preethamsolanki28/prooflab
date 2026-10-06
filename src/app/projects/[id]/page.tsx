@@ -124,9 +124,9 @@ export default function ProjectDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Active tab: overview | work | agreement | brief | feedback | security
+  // Active tab: overview | work | agreement | confidential | feedback | security
   const [activeTab, setActiveTab] = useState<
-    "overview" | "work" | "agreement" | "brief" | "feedback" | "security"
+    "overview" | "work" | "agreement" | "confidential" | "feedback" | "security"
   >("overview");
 
   // M3 Contributions, Credits, Disputes & Credentials State
@@ -332,14 +332,14 @@ export default function ProjectDetailPage({
   };
 
   useEffect(() => {
-    if (activeTab === "brief") {
+    if (activeTab === "confidential") {
       fetchBrief();
     } else if (activeTab === "security") {
       fetchLedger();
     } else if (activeTab === "work" || activeTab === "feedback") {
       refreshM3Data();
     }
-  }, [activeTab, projectId, session?.access_token, user?.id]);
+  }, [activeTab, projectId, session, user?.id]);
 
   useEffect(() => {
     fetchContributions();
@@ -741,24 +741,22 @@ export default function ProjectDetailPage({
             ) : null}
           </button>
 
-          {/* Tab 4: Project Brief */}
-          <button
-            id="tab-brief"
-            onClick={() => setActiveTab("brief")}
-            className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
-              activeTab === "brief"
-                ? "border-emerald-700 text-emerald-800"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <Lock className="w-4 h-4" />
-            Project Brief
-            {isApprovedMember ? (
+          {/* Tab 4: Confidential Data (Sponsor Only - Section 4 & 18) */}
+          {isSponsor && (
+            <button
+              id="tab-confidential"
+              onClick={() => setActiveTab("confidential")}
+              className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
+                activeTab === "confidential"
+                  ? "border-emerald-700 text-emerald-800"
+                  : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+              }`}
+            >
+              <Lock className="w-4 h-4" />
+              Confidential Data
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            ) : (
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-            )}
-          </button>
+            </button>
+          )}
 
           {/* Tab 5: Team & Feedback */}
           <button
@@ -853,9 +851,9 @@ export default function ProjectDetailPage({
       )}
 
       {/* ================================================================ */}
-      {/* TAB 4: PROJECT BRIEF */}
+      {/* TAB 4: CONFIDENTIAL DATA (SPONSOR ONLY) */}
       {/* ================================================================ */}
-      {activeTab === "brief" && (
+      {activeTab === "confidential" && isSponsor && (
         <div className="space-y-6">
           {briefLoading ? (
             <div className="py-20 text-center bg-white border border-slate-200 rounded-2xl">

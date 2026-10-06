@@ -53,13 +53,52 @@ export async function GET(req: NextRequest) {
             student_id,
             project_id,
             projects:project_id ( id, title ),
-            student:student_id ( id, display_name, role, skills, verified )
+            student:student_id ( id, display_name, role, skills, verified, bio, github_url, linkedin_url )
           `)
           .in("project_id", projectIds)
           .eq("status", "pending_expert_review")
           .order("created_at", { ascending: false });
 
-        pendingApplications = apps || [];
+        const rawApps = apps || [];
+        const applicantIds = Array.from(new Set(rawApps.map((a: any) => a.student_id)));
+
+        const reviewsByStudent: Record<string, any[]> = {};
+        if (applicantIds.length > 0) {
+          const { data: revs } = await admin
+            .from("project_feedback")
+            .select("reviewee_id, work_quality, reliability, communication, comment, created_at")
+            .in("reviewee_id", applicantIds);
+          for (const r of revs || []) {
+            if (!reviewsByStudent[r.reviewee_id]) reviewsByStudent[r.reviewee_id] = [];
+            reviewsByStudent[r.reviewee_id].push(r);
+          }
+        }
+
+        pendingApplications = rawApps.map((app: any) => {
+          const rList = reviewsByStudent[app.student_id] || [];
+          const count = rList.length;
+          const avgWork = count
+            ? Number((rList.reduce((acc, r) => acc + r.work_quality, 0) / count).toFixed(1))
+            : 5.0;
+          const avgRel = count
+            ? Number((rList.reduce((acc, r) => acc + r.reliability, 0) / count).toFixed(1))
+            : 5.0;
+          const avgComm = count
+            ? Number((rList.reduce((acc, r) => acc + r.communication, 0) / count).toFixed(1))
+            : 5.0;
+          const overall = Number(((avgWork + avgRel + avgComm) / 3).toFixed(1));
+          return {
+            ...app,
+            rating: {
+              overall: count > 0 ? overall : 5.0,
+              workQuality: avgWork,
+              reliability: avgRel,
+              communication: avgComm,
+              reviewCount: count,
+              recentFeedback: rList.slice(0, 2),
+            },
+          };
+        });
       }
 
       // 3. Fetch Escrows for sponsor projects
@@ -185,6 +224,23 @@ export async function GET(req: NextRequest) {
           ? Math.round((studentRewardPool * verifiedCredits) / totalProjectCredits)
           : 0;
 
+      // 7. Fetch Available Projects for student to apply (Section 15)
+      const { data: availableProjects } = await admin
+        .from("projects")
+        .select(`
+          id,
+          title,
+          public_summary,
+          requirements,
+          skills_needed,
+          budget,
+          status,
+          sponsor:sponsor_id ( id, display_name )
+        `)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(6);
+
       return NextResponse.json({
         role: "student",
         stats: {
@@ -195,6 +251,7 @@ export async function GET(req: NextRequest) {
         },
         myProjects: activeProjects,
         myApplications: applications || [],
+        availableProjects: availableProjects || [],
         recentActivity: notifications || [],
         earningsSummary: {
           yourCredits: verifiedCredits,

@@ -141,8 +141,17 @@ export default function NotificationsPage() {
             <div
               key={n.id}
               onClick={() => {
-                if (n.project_id) router.push(`/projects/${n.project_id}`);
-                else if (n.related_user_id) router.push(`/profile/${n.related_user_id}`);
+                if (
+                  n.title?.toLowerCase().includes("applied") ||
+                  n.title?.toLowerCase().includes("application") ||
+                  n.type === "STUDENT_APPLIED"
+                ) {
+                  router.push("/applications");
+                } else if (n.project_id) {
+                  router.push(`/projects/${n.project_id}`);
+                } else if (n.related_user_id) {
+                  router.push(`/profile/${n.related_user_id}`);
+                }
               }}
               className={`p-4 flex items-start justify-between gap-4 cursor-pointer transition-colors ${
                 n.read ? "hover:bg-slate-50" : "bg-emerald-50/40 hover:bg-emerald-50"
