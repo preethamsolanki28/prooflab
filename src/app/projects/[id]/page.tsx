@@ -495,7 +495,10 @@ export default function ProjectDetailPage({
 
       const resData = await res.json();
       if (!res.ok) {
-        throw new Error(resData.error || "Failed to submit application");
+        const diagMsg = resData.diagnostic
+          ? ` (Token Ref: ${resData.diagnostic.tokenProjectRef}, Server Ref: ${resData.diagnostic.configuredProjectRef}, Matches: ${resData.diagnostic.issuerMatches}, Detail: ${resData.diagnostic.userError})`
+          : "";
+        throw new Error((resData.error || "Failed to submit application") + diagMsg);
       }
 
       setAcceptMessage("Project Agreement accepted! Your application is now pending expert review.");

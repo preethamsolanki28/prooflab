@@ -13,10 +13,63 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
     }
 
+    // --- SAFE DIAGNOSTICS (No secrets/tokens/keys logged) ---
+    let jwtPayload: any = null;
+    try {
+      const parts = token.split(".");
+      if (parts.length >= 2) {
+        const base64Url = parts[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        jwtPayload = JSON.parse(Buffer.from(base64, "base64").toString("utf8"));
+      }
+    } catch {
+      jwtPayload = null;
+    }
+
+    const tokenIss: string = typeof jwtPayload?.iss === "string" ? jwtPayload.iss : "unknown_issuer";
+    const tokenRef =
+      typeof jwtPayload?.ref === "string"
+        ? jwtPayload.ref
+        : (tokenIss.match(/https?:\/\/([^.]+)\.supabase\.co/)?.[1] || "unknown_token_ref");
+
+    const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://opwfsjflhoczeyllhcrf.supabase.co";
+    const configuredRef = configuredUrl.match(/https?:\/\/([^.]+)\.supabase\.co/)?.[1] || "unknown_config_ref";
+
+    const issuerMatches =
+      tokenRef !== "unknown_token_ref" && configuredRef !== "unknown_config_ref"
+        ? tokenRef === configuredRef
+        : tokenIss.includes(configuredRef);
+
+    const safeDiagnostic = {
+      tokenIssuer: tokenIss,
+      tokenProjectRef: tokenRef,
+      configuredProjectUrl: configuredUrl,
+      configuredProjectRef: configuredRef,
+      issuerMatches,
+      tokenRole: jwtPayload?.role || "unknown",
+      isExpired: typeof jwtPayload?.exp === "number" ? Date.now() / 1000 > jwtPayload.exp : "unknown",
+    };
+
+    console.log("[Apply Auth Diagnostic]", safeDiagnostic);
+
     const admin = createAdminClient();
     const { data: { user }, error: userErr } = await admin.auth.getUser(token);
     if (userErr || !user) {
-      return NextResponse.json({ error: "Unauthorized: Invalid token" }, { status: 401 });
+      console.warn("[Apply Auth Failed]", {
+        userError: userErr?.message || "User is null",
+        diagnostic: safeDiagnostic,
+      });
+
+      return NextResponse.json(
+        {
+          error: "Unauthorized: Invalid token",
+          diagnostic: {
+            ...safeDiagnostic,
+            userError: userErr?.message || "User is null",
+          },
+        },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
