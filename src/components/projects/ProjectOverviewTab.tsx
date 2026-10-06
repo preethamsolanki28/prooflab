@@ -105,7 +105,7 @@ export function ProjectOverviewTab({
       {/* 1. PROJECT SUMMARY (PLAIN ENGLISH) */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
         <div className="max-w-3xl">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
             Project Summary
           </span>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-2.5 mb-3 leading-snug">
@@ -116,7 +116,7 @@ export function ProjectOverviewTab({
             {/* What is this project? */}
             <div>
               <h3 className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
-                <HelpCircle className="w-4 h-4 text-indigo-600" />
+                <HelpCircle className="w-4 h-4 text-emerald-700" />
                 What is this project?
               </h3>
               <p className="text-slate-600">{project.public_summary}</p>
@@ -125,7 +125,7 @@ export function ProjectOverviewTab({
             {/* Who is this for? */}
             <div>
               <h3 className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
-                <Briefcase className="w-4 h-4 text-indigo-600" />
+                <Briefcase className="w-4 h-4 text-emerald-700" />
                 Who is this for?
               </h3>
               <p className="text-slate-600">
@@ -180,10 +180,10 @@ export function ProjectOverviewTab({
       </div>
 
       {/* 2. LOCAL AI PROJECT SUMMARY (PROCESSED BY LOCAL OLLAMA) */}
-      <div className="bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-slate-50 border border-indigo-200/80 rounded-2xl p-6 shadow-xs">
+      <div className="bg-emerald-50/40 border border-emerald-200 rounded-2xl p-6 shadow-xs">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-2xs">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-2xs">
               <Bot className="h-4 w-4" />
             </div>
             <div>

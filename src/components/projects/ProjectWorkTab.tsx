@@ -286,14 +286,14 @@ export function ProjectWorkTab({
           </div>
 
           {isApprovedMember ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Workspace Unlocked
+              Workspace ACTIVE
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200">
               <Lock className="h-3.5 w-3.5" />
-              Approval Required
+              Workspace LOCKED
             </span>
           )}
         </div>
@@ -339,20 +339,20 @@ export function ProjectWorkTab({
           <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-6 text-center">
             <Clock className="h-6 w-6 text-amber-600 mx-auto mb-2" />
             <h4 className="text-xs font-bold text-amber-900">
-              Application Pending Expert Review
+              Workspace LOCKED
             </h4>
             <p className="text-xs text-amber-700 mt-1 max-w-md mx-auto leading-relaxed">
-              You have accepted the Project Agreement. The project expert is reviewing your profile. The code workspace and contribution pipeline will unlock automatically once approved.
+              Your application is waiting for approval.
             </p>
           </div>
         ) : (
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
             <Lock className="h-6 w-6 text-slate-400 mx-auto mb-2" />
             <h4 className="text-xs font-bold text-slate-800">
-              Workspace Locked
+              Workspace LOCKED
             </h4>
             <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto leading-relaxed">
-              To protect research intellectual property and maintain quality, you must accept the Project Agreement and receive expert approval before accessing the workspace.
+              To protect research intellectual property and maintain quality, you must accept the Project Agreement and receive approval before accessing the workspace.
             </p>
           </div>
         )}

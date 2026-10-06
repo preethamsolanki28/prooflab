@@ -84,29 +84,29 @@ export default function AuditPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 pb-6 border-b border-slate-200">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-2">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 mb-2">
             <Fingerprint className="w-3.5 h-3.5" />
             Append-Only Cryptographic Audit Log
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
             Proof of Contribution Ledger
           </h1>
-          <p className="text-sm text-slate-600 mt-1 max-w-2xl">
-            Every project charter, member acceptance, milestone submission, and confidential access is permanently sealed in an immutable SHA-256 hash chain with database mutation blocks.
+          <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+            Every project agreement, member acceptance, milestone submission, and confidential access is permanently sealed in an immutable SHA-256 hash chain with database mutation blocks.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => handleVerify(false)}
             disabled={verifying || entries.length === 0}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5"
           >
-            <ShieldCheck className="w-4 h-4" />
+            <ShieldCheck className="w-3.5 h-3.5" />
             {verifying ? "Verifying..." : "Verify Hash Chain"}
           </button>
 

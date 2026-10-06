@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 import { AuthProvider } from "@/lib/auth/auth-context";
-import { Navbar } from "@/components/layout/navbar";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "Gardenia 2K26 — Proof of Contribution + Protected Collaboration",
+  title: "ResearchMesh — Proof of Contribution & Research Collaboration",
   description: "Collaborative research ecosystem with privacy-preserving AI and tamper-evident ledger",
 };
 
@@ -30,10 +30,9 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#F8FAFC] text-[#0F172A]">
+      <body className="min-h-full flex flex-col bg-[#F8FAFC] text-slate-900">
         <AuthProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
+          <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>
     </html>

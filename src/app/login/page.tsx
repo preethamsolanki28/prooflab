@@ -2,16 +2,30 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth, SYNTHETIC_ACCOUNTS, SyntheticAccount } from "@/lib/auth/auth-context";
-import { ShieldCheck, ArrowRight, UserCheck, Lock, Mail, AlertCircle } from "lucide-react";
+import { useAuth, UserRole } from "@/lib/auth/auth-context";
+import { isValidEmail, EMAIL_VALIDATION_ERROR } from "@/lib/auth/validation";
+import {
+  ShieldCheck,
+  ArrowRight,
+  UserCheck,
+  Lock,
+  Mail,
+  User,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signInWithGoogle, quickLogin, user, profile } = useAuth();
+  const { signIn, signUp, signInWithGoogle, user, profile } = useAuth();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("Password123!");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [role, setRole] = useState<UserRole>("student");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   async function handleGoogleLogin() {
     try {
@@ -24,72 +38,120 @@ export default function LoginPage() {
     }
   }
 
-  async function handleManualSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setInfoMessage(null);
 
-    // Strict client-side email format validation
     const trimmedEmail = email.trim();
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setError("Please enter a valid email address.");
+    if (!isValidEmail(trimmedEmail)) {
+      setError(EMAIL_VALIDATION_ERROR);
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
     try {
       setLoading(true);
-      await signIn(trimmedEmail, password);
-      router.push("/projects");
+      if (mode === "signin") {
+        await signIn(trimmedEmail, password);
+        router.push("/");
+      } else {
+        if (!displayName.trim()) {
+          setError("Please enter your name.");
+          setLoading(false);
+          return;
+        }
+        const result = await signUp(trimmedEmail, password, displayName.trim(), role);
+        if (result.needsConfirmation) {
+          setInfoMessage("Registration successful! Check your email to confirm your account, then sign in.");
+          setMode("signin");
+        } else {
+          router.push("/");
+        }
+      }
     } catch (err: any) {
-      setError(err.message || "Failed to authenticate.");
+      setError(err.message || "Authentication failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
   }
-
-  async function handleQuick(account: SyntheticAccount) {
-    try {
-      setLoading(true);
-      setError(null);
-      await quickLogin(account);
-      router.push("/projects");
-    } catch (err: any) {
-      setError(err.message || "Quick login failed.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const roleColors: Record<string, string> = {
-    sponsor: "border-purple-200 bg-purple-50/50 hover:bg-purple-100/60 text-purple-950",
-    student: "border-blue-200 bg-blue-50/50 hover:bg-blue-100/60 text-blue-950",
-    expert: "border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/60 text-emerald-950",
-    admin: "border-amber-200 bg-amber-50/50 hover:bg-amber-100/60 text-amber-950",
-  };
-
-  const badgeColors: Record<string, string> = {
-    sponsor: "bg-purple-100 text-purple-800 border-purple-200",
-    student: "bg-blue-100 text-blue-800 border-blue-200",
-    expert: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    admin: "bg-amber-100 text-amber-800 border-amber-200",
-  };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
-        {/* Header */}
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#F8FAFC]">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
+        {/* Brand Header */}
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#3730A3] text-white shadow-sm">
-            <ShieldCheck className="h-6 w-6" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-2xs">
+            <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Sign In to Gardenia 2K26
+            <h1 className="text-lg font-semibold tracking-tight text-slate-900">
+              ResearchMesh
             </h1>
             <p className="text-xs text-slate-500">
-              Collaborative Research Ecosystem with Privacy-Preserving AI
+              Verified research collaboration &amp; credit attribution
             </p>
           </div>
+        </div>
+
+        {/* Currently logged-in indicator */}
+        {user && profile && (
+          <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <UserCheck className="h-4 w-4 text-emerald-700" />
+              <div>
+                <p className="text-xs font-semibold text-slate-900">
+                  Signed in as {profile.display_name}
+                </p>
+                <p className="text-[11px] text-slate-500 capitalize">
+                  Role: <span className="font-semibold text-slate-700">{profile.role}</span>
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/")}
+              className="flex items-center gap-1 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 transition-colors"
+            >
+              Go to Dashboard
+              <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+
+        {/* Tab Toggle: Sign In vs Sign Up */}
+        <div className="mt-6 flex border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signin");
+              setError(null);
+            }}
+            className={`flex-1 pb-2.5 text-xs font-semibold text-center transition-colors border-b-2 ${
+              mode === "signin"
+                ? "border-emerald-700 text-emerald-800"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signup");
+              setError(null);
+            }}
+            className={`flex-1 pb-2.5 text-xs font-semibold text-center transition-colors border-b-2 ${
+              mode === "signup"
+                ? "border-emerald-700 text-emerald-800"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Create Account
+          </button>
         </div>
 
         {error && (
@@ -99,38 +161,21 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Current logged-in banner */}
-        {user && profile && (
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <UserCheck className="h-4 w-4 text-[#3730A3]" />
-              <div>
-                <p className="text-xs font-semibold text-slate-900">
-                  Signed in as {profile.display_name}
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Current database role: <span className="uppercase font-bold">{profile.role}</span>
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => router.push("/projects")}
-              className="flex items-center gap-1 rounded-lg bg-[#3730A3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#312E81] transition-colors"
-            >
-              Continue to Projects
-              <ArrowRight className="h-3 w-3" />
-            </button>
+        {infoMessage && (
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span>{infoMessage}</span>
           </div>
         )}
 
         {/* Continue with Google OAuth Button */}
-        <div className="mt-6">
+        <div className="mt-5">
           <button
             id="btn-continue-google"
             type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-400 focus:outline-hidden disabled:opacity-60 transition-all"
+            className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-400 focus:outline-hidden disabled:opacity-60 transition-all"
           >
             <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
               <path
@@ -154,116 +199,115 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <div className="relative my-5">
+        <div className="relative my-4">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200" />
           </div>
           <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
-            <span className="bg-white px-2 text-slate-400 font-semibold">Or use demo accounts</span>
+            <span className="bg-white px-2 text-slate-400 font-medium">Or email</span>
           </div>
         </div>
 
-        {/* 1-Click Synthetic Persona Selection */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Select Demo Persona (1-Click Switch)
-            </h2>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Database RLS Enforced
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Test real Supabase authentication with verified roles from PostgreSQL
-          </p>
-
-          <div className="mt-3 flex flex-col gap-2">
-            {SYNTHETIC_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => handleQuick(acc)}
-                disabled={loading}
-                className={`flex items-center justify-between rounded-xl border p-3 text-left transition-all ${
-                  roleColors[acc.role]
-                } ${loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/80 border border-slate-200 text-slate-700 font-bold text-xs">
-                    {acc.label.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold">{acc.label}</span>
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[9px] uppercase font-bold tracking-wider border ${
-                          badgeColors[acc.role]
-                        }`}
-                      >
-                        {acc.role}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
-                      {acc.desc}
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-400" />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Manual Email / Password Accordion */}
-        <div className="mt-6 border-t border-slate-200 pt-5">
-          <details className="group">
-            <summary className="cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors">
-              ▸ Or sign in manually with credentials
-            </summary>
-            <form onSubmit={handleManualSubmit} className="mt-4 flex flex-col gap-3">
+        {/* Email & Password Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {mode === "signup" && (
+            <>
               <div>
                 <label className="block text-xs font-medium text-slate-700">
-                  Email Address
+                  Full Name
                 </label>
                 <div className="relative mt-1">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                   <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="user@gardenia.test"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="e.g. Dr. Ramesh Kumar or Arjun Patel"
                     required
-                    className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-900 focus:border-[#3730A3] focus:outline-hidden"
+                    className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-700">
-                  Password
+                  Account Type
                 </label>
-                <div className="relative mt-1">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-900 focus:border-[#3730A3] focus:outline-hidden"
-                  />
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRole("student")}
+                    className={`rounded-lg border p-2 text-center text-xs font-medium transition-all ${
+                      role === "student"
+                        ? "border-emerald-600 bg-emerald-50/50 text-emerald-800"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    Student / Researcher
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole("sponsor")}
+                    className={`rounded-lg border p-2 text-center text-xs font-medium transition-all ${
+                      role === "sponsor"
+                        ? "border-emerald-600 bg-emerald-50/50 text-emerald-800"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    Sponsor / Org
+                  </button>
                 </div>
               </div>
+            </>
+          )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-1 flex items-center justify-center gap-1.5 rounded-lg bg-[#3730A3] py-2 text-xs font-semibold text-white hover:bg-[#312E81] transition-colors"
-              >
-                {loading ? "Signing in..." : "Sign In with Credentials"}
-              </button>
-            </form>
-          </details>
-        </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700">
+              Email Address
+            </label>
+            <div className="relative mt-1">
+              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@university.edu"
+                required
+                className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700">
+              Password
+            </label>
+            <div className="relative mt-1">
+              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+                className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-emerald-700 py-2.5 text-xs font-medium text-white hover:bg-emerald-800 transition-colors shadow-2xs disabled:opacity-60"
+          >
+            {loading ? "Processing..." : mode === "signin" ? "Sign In" : "Create Account"}
+          </button>
+        </form>
+
+        <p className="mt-5 text-center text-[11px] text-slate-500">
+          Privacy-preserving AI routing &bull; Immutable SHA-256 ledger
+        </p>
       </div>
     </div>
   );

@@ -82,6 +82,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password?: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, role: UserRole) => Promise<{ needsConfirmation: boolean; user: User | null }>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   quickLogin: (account: SyntheticAccount) => Promise<void>;
@@ -217,6 +218,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function signUp(email: string, password: string, displayName: string, role: UserRole = "student") {
+    setLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: displayName,
+          full_name: displayName,
+          role,
+        },
+      },
+    });
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
+    if (data?.user && !data.session) {
+      setLoading(false);
+      return { needsConfirmation: true, user: data.user };
+    }
+    if (data?.user) {
+      await fetchProfile(data.user.id, data.user);
+    }
+    setLoading(false);
+    return { needsConfirmation: false, user: data?.user ?? null };
+  }
+
   async function quickLogin(account: SyntheticAccount) {
     await signIn(account.email, account.password);
   }
@@ -268,6 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         loading,
         signIn,
+        signUp,
         signInWithGoogle,
         signOut,
         quickLogin,

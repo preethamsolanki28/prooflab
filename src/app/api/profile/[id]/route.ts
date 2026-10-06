@@ -16,7 +16,7 @@ export async function GET(
     // 1. Fetch user profile
     const { data: profile, error: profErr } = await admin
       .from("profiles")
-      .select("id, display_name, role, skills, verified, created_at")
+      .select("id, display_name, role, skills, verified, created_at, bio, github_url, linkedin_url, avatar_url")
       .eq("id", id)
       .maybeSingle();
 
@@ -131,3 +131,49 @@ export async function GET(
     return NextResponse.json({ error: err.message || "Failed to load profile" }, { status: 500 });
   }
 }
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const admin = createAdminClient();
+    const { data: { user }, error: userErr } = await admin.auth.getUser(token);
+    if (userErr || !user || user.id !== id) {
+      return NextResponse.json({ error: "Forbidden: You can only edit your own profile" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { bio, github_url, linkedin_url, skills, display_name } = body;
+
+    const updates: Record<string, any> = {};
+    if (bio !== undefined) updates.bio = bio;
+    if (github_url !== undefined) updates.github_url = github_url;
+    if (linkedin_url !== undefined) updates.linkedin_url = linkedin_url;
+    if (display_name !== undefined) updates.display_name = display_name;
+    if (skills !== undefined && Array.isArray(skills)) updates.skills = skills;
+
+    const { data: updated, error: updateErr } = await admin
+      .from("profiles")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, profile: updated });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Failed to update profile" }, { status: 500 });
+  }
+}
+

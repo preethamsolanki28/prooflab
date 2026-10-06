@@ -71,11 +71,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       title,
+      description,
       public_summary,
-      engagement_model,
-      data_sensitivity,
-      confidential_brief,
+      requirements,
+      deliverables,
+      skills_needed,
+      timeline,
       budget,
+      confidential_brief,
+      agreement_text,
       milestones,
       roles,
       ip_terms,
@@ -87,22 +91,31 @@ export async function POST(req: NextRequest) {
       commercialisation_terms,
     } = body;
 
-    if (!title || !public_summary || !engagement_model || !data_sensitivity) {
+    const finalSummary = (public_summary || description || "").trim();
+    if (!title || !finalSummary) {
       return NextResponse.json(
-        { error: "Validation error: Missing required project fields" },
+        { error: "Validation error: Title and Project Description are required." },
         { status: 400 }
       );
     }
+
+    const finalSensitivity = body.data_sensitivity || (confidential_brief && confidential_brief.trim() ? "confidential" : "public");
+    const finalEngagement = body.engagement_model || "charter_v1";
 
     // 1. Insert Project into public.projects
     const { data: project, error: projErr } = await admin
       .from("projects")
       .insert({
         sponsor_id: user.id,
-        title,
-        public_summary,
-        engagement_model,
-        data_sensitivity,
+        title: title.trim(),
+        public_summary: finalSummary,
+        engagement_model: finalEngagement,
+        data_sensitivity: finalSensitivity,
+        requirements: requirements || "",
+        deliverables: deliverables || "",
+        skills_needed: Array.isArray(skills_needed) ? skills_needed : [],
+        timeline: timeline || "",
+        budget: budget ? Number(budget) : 0,
         status: "active",
       })
       .select()
@@ -123,21 +136,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Insert Charter v1 into public.charters
+    // Standard default agreement if none provided
+    const defaultAgreement = `PROJECT AGREEMENT
+1. Work Expectations: Contributors agree to deliver high quality, reproducible code and documentation according to milestone criteria.
+2. Review & Attribution: All contributions are human-reviewed before research credits are derived.
+3. Proportional Rewards: The student reward pool is distributed strictly proportional to reviewed impact scores.
+4. Ownership & License: Open research with explicit attribution to human contributors; sponsor receives non-exclusive commercial rights.
+5. Confidentiality: Confidential datasets and briefs are restricted to verified contributors and must never be shared or sent to unauthorized cloud services.
+6. Exit & Disputes: Contributors retain credit for reviewed and accepted contributions. Disagreements are subject to administrative review.`;
+
+    const finalAgreementText = (agreement_text || "").trim() || defaultAgreement;
+
+    // 3. Insert Charter into public.charters
     const { data: charter, error: charterErr } = await admin
       .from("charters")
       .insert({
         project_id: project.id,
         version: 1,
-        engagement_model,
+        engagement_model: finalEngagement,
         budget: budget ? Number(budget) : 0,
+        agreement_text: finalAgreementText,
         milestones_json: milestones || [
           {
             id: 1,
             title: "Milestone 1: Project Setup & Baseline",
             budget: budget ? Math.floor(Number(budget) / 2) : 0,
-            description: "Initial research and pipeline setup",
-            required_skills: ["Research", "Implementation"],
+            description: "Initial research, baseline setup, and architecture",
+            required_skills: Array.isArray(skills_needed) && skills_needed.length > 0 ? skills_needed : ["Research", "Implementation"],
+          },
+          {
+            id: 2,
+            title: "Milestone 2: Validation & Final Deliverable",
+            budget: budget ? Math.floor(Number(budget) / 2) : 0,
+            description: "Evaluation benchmarks and reproducible report",
+            required_skills: Array.isArray(skills_needed) && skills_needed.length > 0 ? skills_needed : ["Model Evaluation", "Analysis"],
           },
         ],
         roles_json: roles || [
@@ -147,12 +179,12 @@ export async function POST(req: NextRequest) {
         publication_terms: publication_terms || "Joint academic publication with named human student authors.",
         confidentiality_terms:
           confidentiality_terms ||
-          (data_sensitivity === "confidential"
+          (finalSensitivity === "confidential"
             ? "Strict local model only for confidential briefs. No cloud LLM access to sensitive datasets."
             : "Public project data; cloud LLM allowed."),
         permitted_ai_tools:
           permitted_ai_tools ||
-          (data_sensitivity === "confidential" ? "Local models only" : "OpenRouter cloud API & local models"),
+          (finalSensitivity === "confidential" ? "Local models only" : "OpenRouter cloud API & local models"),
         credit_reward_terms:
           credit_reward_terms || "Proportional reward/credit distribution based on human review.",
         sponsor_withdrawal_terms:
@@ -165,6 +197,25 @@ export async function POST(req: NextRequest) {
 
     if (charterErr) {
       return NextResponse.json({ error: `Failed to create charter: ${charterErr.message}` }, { status: 500 });
+    }
+
+    // 3b. Also insert milestone rows into public.milestones table
+    const milestoneItems = Array.isArray(milestones) && milestones.length > 0
+      ? milestones
+      : (charter?.milestones_json || []);
+
+    const milestoneRows = milestoneItems.map((m: any, idx: number) => ({
+      project_id: project.id,
+      title: m.title || `Milestone ${idx + 1}`,
+      description: m.description || "",
+      required_skills: m.required_skills || [],
+      acceptance_criteria: m.acceptance_criteria || [],
+      status: "open",
+      amount: m.budget ? Number(m.budget) : (budget ? Math.floor(Number(budget) / milestoneItems.length) : 0),
+    }));
+
+    if (milestoneRows.length > 0) {
+      await admin.from("milestones").insert(milestoneRows);
     }
 
     // 4. Record PROJECT_POSTED in the Append-Only Cryptographic Ledger

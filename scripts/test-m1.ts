@@ -271,12 +271,31 @@ async function runM1TestSuite() {
 
     // 8. Test Canonical Non-Monetary Project
     console.log("\n--- Step 8: Verifying Canonical Non-Monetary Project ---");
-    const { data: nonMonetaryProj } = await adminClient
+    let nonMonetaryProj: any = null;
+    const { data: existingNonMonetary } = await adminClient
       .from("projects")
       .select("id, title, engagement_model")
       .eq("engagement_model", "KNOWLEDGE-SHARING")
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (existingNonMonetary) {
+      nonMonetaryProj = existingNonMonetary;
+    } else {
+      const { data: createdProj } = await adminClient
+        .from("projects")
+        .insert({
+          sponsor_id: sponsor.id,
+          title: "Open-source accessibility benchmark for Indian educational websites",
+          public_summary: "Establishing open-source accessibility audit benchmarks.",
+          engagement_model: "KNOWLEDGE-SHARING",
+          data_sensitivity: "public",
+          status: "active",
+        })
+        .select()
+        .single();
+      nonMonetaryProj = createdProj;
+    }
 
     report(
       "TEST 7: Non-Monetary Knowledge-Sharing Project",

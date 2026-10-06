@@ -70,7 +70,7 @@ export function ProjectAgreementTab({
       {/* Header Card */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
         <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-2xs">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-2xs">
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
@@ -190,7 +190,7 @@ export function ProjectAgreementTab({
                 id="btn-accept-agreement"
                 type="submit"
                 disabled={!agreed || applying}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#3730A3] px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#312E81] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {applying ? "Submitting Application..." : "Accept Agreement & Apply"}
                 <ArrowRight className="h-4 w-4" />

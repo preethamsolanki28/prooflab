@@ -589,20 +589,20 @@ export default function ProjectDetailPage({
   const budget = charter?.budget ?? (isFunded ? 100000 : 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-        <Link href="/projects" className="hover:text-indigo-600">Projects</Link>
+      <nav className="flex items-center gap-2 text-xs text-slate-500 mb-2">
+        <Link href="/projects" className="hover:text-emerald-700">Projects</Link>
         <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
         <span className="text-slate-800 font-medium truncate max-w-md">{project.title}</span>
       </nav>
 
       {/* Project Banner / Header */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs mb-8">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
         <div className="flex flex-wrap items-center gap-2 mb-3">
           {isConfidential ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-              <Lock className="w-3.5 h-3.5 text-rose-600" />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              <Lock className="w-3.5 h-3.5 text-slate-600" />
               CONFIDENTIAL DATA · LOCAL AI ONLY
             </span>
           ) : (
@@ -612,15 +612,15 @@ export default function ProjectDetailPage({
             </span>
           )}
 
-          {isFunded ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              <Coins className="w-3.5 h-3.5 text-indigo-600" />
-              FUNDED REWARD (₹{budget.toLocaleString("en-IN")})
+          {budget > 0 ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <Coins className="w-3.5 h-3.5 text-emerald-600" />
+              REWARD POOL (₹{budget.toLocaleString("en-IN")})
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-              <Award className="w-3.5 h-3.5 text-purple-600" />
-              KNOWLEDGE-SHARING (CREDITS)
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              <Award className="w-3.5 h-3.5 text-slate-600" />
+              RESEARCH CREDITS &amp; CREDENTIALS
             </span>
           )}
 
@@ -634,7 +634,7 @@ export default function ProjectDetailPage({
           {isPending && (
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
               <Clock className="w-3.5 h-3.5 text-amber-600" />
-              APPLICATION PENDING REVIEW
+              WAITING FOR APPROVAL
             </span>
           )}
         </div>
@@ -653,7 +653,7 @@ export default function ProjectDetailPage({
             Sponsor:{" "}
             <Link
               href={`/profile/${project.sponsor_id}`}
-              className="text-slate-800 font-semibold hover:text-indigo-600 hover:underline"
+              className="text-slate-800 font-semibold hover:text-emerald-700 hover:underline"
             >
               {project.profiles?.display_name || "Research Sponsor"}
             </Link>
@@ -666,7 +666,7 @@ export default function ProjectDetailPage({
           </div>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-slate-400">Current User:</span>
-            <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+            <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
               {profile?.display_name || "Guest"} ({profile?.role || "anonymous"})
             </span>
           </div>
@@ -687,7 +687,7 @@ export default function ProjectDetailPage({
       )}
 
       {/* Redesigned 6 Tabs Header */}
-      <div className="border-b border-slate-200 mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="border-b border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap space-x-2 sm:space-x-6">
           {/* Tab 1: Overview */}
           <button
@@ -695,7 +695,7 @@ export default function ProjectDetailPage({
             onClick={() => setActiveTab("overview")}
             className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
               activeTab === "overview"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-emerald-700 text-emerald-800"
                 : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
             }`}
           >
@@ -709,14 +709,14 @@ export default function ProjectDetailPage({
             onClick={() => setActiveTab("work")}
             className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
               activeTab === "work"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-emerald-700 text-emerald-800"
                 : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
             }`}
           >
             <Coins className="w-4 h-4" />
             Work &amp; Earnings
             {contributions.length > 0 && (
-              <span className="px-1.5 py-0.2 bg-indigo-100 text-indigo-700 rounded-full text-[10px]">
+              <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded-full text-[10px]">
                 {contributions.length}
               </span>
             )}
@@ -728,14 +728,14 @@ export default function ProjectDetailPage({
             onClick={() => setActiveTab("agreement")}
             className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
               activeTab === "agreement"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-emerald-700 text-emerald-800"
                 : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
             Agreement
             {isApprovedMember ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             ) : isPending ? (
               <Clock className="w-3.5 h-3.5 text-amber-600" />
             ) : null}
@@ -747,7 +747,7 @@ export default function ProjectDetailPage({
             onClick={() => setActiveTab("brief")}
             className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
               activeTab === "brief"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-emerald-700 text-emerald-800"
                 : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
             }`}
           >
@@ -766,7 +766,7 @@ export default function ProjectDetailPage({
             onClick={() => setActiveTab("feedback")}
             className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
               activeTab === "feedback"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-emerald-700 text-emerald-800"
                 : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
             }`}
           >
@@ -780,7 +780,7 @@ export default function ProjectDetailPage({
             onClick={() => setActiveTab("security")}
             className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
               activeTab === "security"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-emerald-700 text-emerald-800"
                 : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
             }`}
           >

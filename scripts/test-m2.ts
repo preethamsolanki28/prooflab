@@ -86,24 +86,47 @@ async function runM2TestSuite() {
     console.log(`✓ Conflicted Expert: ${conflictExpert.email}\n`);
 
     // Fetch or verify canonical funded project
-    const { data: fundedProjects } = await adminClient
+    let { data: fundedProjects } = await adminClient
       .from("projects")
       .select("id, title, public_summary, engagement_model, data_sensitivity")
       .eq("title", "Low-cost detection of diabetic retinopathy from fundus images on edge devices")
       .limit(1);
 
+    if (!fundedProjects || fundedProjects.length === 0) {
+      console.log("Seeding test fixtures for M2 test suite...");
+      const { seedDemoData } = await import("../src/lib/seed");
+      await seedDemoData();
+      const refetched = await adminClient
+        .from("projects")
+        .select("id, title, public_summary, engagement_model, data_sensitivity")
+        .eq("title", "Low-cost detection of diabetic retinopathy from fundus images on edge devices")
+        .limit(1);
+      fundedProjects = refetched.data;
+    }
+
     const fundedProject = fundedProjects?.[0];
-    if (!fundedProject) throw new Error("Canonical funded project not found. Run npm run seed first.");
+    if (!fundedProject) throw new Error("Canonical funded project not found.");
 
     // Fetch canonical public / knowledge-sharing project
-    const { data: publicProjects } = await adminClient
+    let { data: publicProjects } = await adminClient
       .from("projects")
       .select("id, title, public_summary, engagement_model, data_sensitivity")
       .eq("engagement_model", "KNOWLEDGE-SHARING")
       .limit(1);
 
+    if (!publicProjects || publicProjects.length === 0) {
+      const { seedDemoData } = await import("../src/lib/seed");
+      await seedDemoData();
+      const refetched = await adminClient
+        .from("projects")
+        .select("id, title, public_summary, engagement_model, data_sensitivity")
+        .eq("engagement_model", "KNOWLEDGE-SHARING")
+        .limit(1);
+      publicProjects = refetched.data;
+    }
+
     const publicProject = publicProjects?.[0];
-    if (!publicProject) throw new Error("Canonical public project not found. Run npm run seed first.");
+    if (!publicProject) throw new Error("Canonical public project not found.");
 
     // ----------------------------------------------------
     // TEST 1: Seeded public project -> AI scoping returns exactly 2 milestones

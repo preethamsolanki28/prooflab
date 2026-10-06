@@ -43,7 +43,7 @@ export function Navbar() {
     } catch {
       // ignore in silent polling
     }
-  }, [session?.access_token]);
+  }, [session]);
 
   React.useEffect(() => {
     fetchNotifications();

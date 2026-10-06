@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ProjectCard, ProjectCardData } from "@/components/projects/project-card";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
@@ -9,30 +10,48 @@ import {
   Filter,
   PlusCircle,
   ShieldCheck,
-  Lock,
-  Coins,
-  Award,
   RefreshCw,
+  FolderKanban,
 } from "lucide-react";
 
-export default function ProjectsPage() {
-  const { profile } = useAuth();
+function ProjectsContent() {
+  const { user, profile, session } = useAuth();
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") || "";
+
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
+  const [userApplications, setUserApplications] = useState<any[]>([]);
+  const [userMemberships, setUserMemberships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "funded" | "knowledge" | "confidential" | "public">("all");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [activeFilter, setActiveFilter] = useState<"all" | "open" | "applications" | "my_projects">("all");
+
+  const isSponsor = profile?.role === "sponsor" || profile?.role === "admin";
 
   const fetchProjects = async () => {
     try {
       setLoading(true);
       setError(null);
+
       const res = await fetch("/api/projects");
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Failed to load projects");
       }
       setProjects(data.projects || []);
+
+      // If user is authenticated, fetch their applications and memberships to populate filters
+      if (session?.access_token) {
+        const appsRes = await fetch("/api/dashboard", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (appsRes.ok) {
+          const dash = await appsRes.json();
+          setUserApplications(dash.myApplications || dash.pendingApplications || []);
+          setUserMemberships(dash.myProjects || dash.projects || []);
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Failed to connect to database");
     } finally {
@@ -42,176 +61,205 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [session?.access_token]);
+
+  // Combined projects with user application statuses
+  const projectsWithStatus = useMemo(() => {
+    const appMap = new Map();
+    userApplications.forEach((a) => {
+      const pId = a.project?.id || a.project_id;
+      if (pId) appMap.set(pId, a.status);
+    });
+
+    return projects.map((p) => ({
+      ...p,
+      user_application_status: appMap.get(p.id) || null,
+    }));
+  }, [projects, userApplications]);
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((proj) => {
-      // Filter by category
-      if (activeTab === "funded") {
-        const isFunded =
-          proj.engagement_model?.toUpperCase() === "FUNDED" ||
-          proj.engagement_model === "bounty_milestones";
-        if (!isFunded) return false;
-      } else if (activeTab === "knowledge") {
-        const isKnowledge =
-          proj.engagement_model?.toUpperCase() === "KNOWLEDGE-SHARING" ||
-          proj.engagement_model === "academic_credits";
-        if (!isKnowledge) return false;
-      } else if (activeTab === "confidential") {
-        if (proj.data_sensitivity !== "confidential") return false;
-      } else if (activeTab === "public") {
-        if (proj.data_sensitivity !== "public") return false;
+    return projectsWithStatus.filter((proj) => {
+      // 1. Filter tabs
+      if (activeFilter === "open") {
+        if (proj.status !== "active") return false;
+      } else if (activeFilter === "applications") {
+        const hasApplied = userApplications.some(
+          (a) => (a.project?.id || a.project_id) === proj.id
+        );
+        if (!hasApplied) return false;
+      } else if (activeFilter === "my_projects") {
+        const isMine =
+          proj.sponsor_id === user?.id ||
+          userMemberships.some((m) => m.id === proj.id);
+        if (!isMine) return false;
       }
 
-      // Filter by search query
+      // 2. Search query filter
       if (searchQuery.trim().length > 0) {
         const q = searchQuery.toLowerCase();
         const titleMatch = proj.title?.toLowerCase().includes(q);
         const summaryMatch = proj.public_summary?.toLowerCase().includes(q);
         const sponsorMatch = proj.profiles?.display_name?.toLowerCase().includes(q);
-        if (!titleMatch && !summaryMatch && !sponsorMatch) return false;
+        const skillMatch = (proj.skills_needed || []).some((s: string) =>
+          s.toLowerCase().includes(q)
+        );
+        if (!titleMatch && !summaryMatch && !sponsorMatch && !skillMatch) return false;
       }
 
       return true;
     });
-  }, [projects, activeTab, searchQuery]);
+  }, [projectsWithStatus, activeFilter, searchQuery, user?.id, userApplications, userMemberships]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 pb-6 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-2">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Charter-Enforced Research Projects
-          </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Research Projects Directory
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
+            Explore Research Projects
           </h1>
-          <p className="text-sm text-slate-600 mt-1 max-w-2xl">
-            Browse active research initiatives. Review terms, project charters, and milestone scopes before participating.
-            Confidential research briefs are strictly protected by Row-Level Security.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Browse verified research initiatives, review project agreements, and apply to contribute.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {isSponsor && (
+            <Link
+              href="/projects/new"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors shadow-2xs"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              Post Project
+            </Link>
+          )}
+
           <button
             onClick={fetchProjects}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
-            title="Refresh Projects"
+            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+            title="Refresh projects"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </button>
-
-          <Link
-            href="/projects/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
-          >
-            <PlusCircle className="w-4 h-4" />
-            Post New Project
-          </Link>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
-        {/* Category Tabs */}
-        <div className="inline-flex p-1 bg-slate-100 rounded-lg text-xs font-medium text-slate-600 overflow-x-auto">
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Simple Filters */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
           <button
-            onClick={() => setActiveTab("all")}
-            className={`px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-              activeTab === "all" ? "bg-white text-indigo-700 font-semibold shadow-xs" : "hover:text-slate-900"
+            onClick={() => setActiveFilter("all")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
+              activeFilter === "all"
+                ? "bg-emerald-700 text-white font-semibold shadow-2xs"
+                : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            All Projects ({projects.length})
+            All Projects
           </button>
           <button
-            onClick={() => setActiveTab("funded")}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 whitespace-nowrap ${
-              activeTab === "funded" ? "bg-white text-indigo-700 font-semibold shadow-xs" : "hover:text-slate-900"
+            onClick={() => setActiveFilter("open")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
+              activeFilter === "open"
+                ? "bg-emerald-700 text-white font-semibold shadow-2xs"
+                : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            <Coins className="w-3.5 h-3.5 text-indigo-600" />
-            Funded
+            Open for Applications
           </button>
-          <button
-            onClick={() => setActiveTab("knowledge")}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 whitespace-nowrap ${
-              activeTab === "knowledge" ? "bg-white text-purple-700 font-semibold shadow-xs" : "hover:text-slate-900"
-            }`}
-          >
-            <Award className="w-3.5 h-3.5 text-purple-600" />
-            Knowledge-Sharing
-          </button>
-          <button
-            onClick={() => setActiveTab("confidential")}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 whitespace-nowrap ${
-              activeTab === "confidential" ? "bg-white text-rose-700 font-semibold shadow-xs" : "hover:text-slate-900"
-            }`}
-          >
-            <Lock className="w-3.5 h-3.5 text-rose-600" />
-            Confidential
-          </button>
+          {user && (
+            <>
+              <button
+                onClick={() => setActiveFilter("applications")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
+                  activeFilter === "applications"
+                    ? "bg-emerald-700 text-white font-semibold shadow-2xs"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                My Applications
+              </button>
+              <button
+                onClick={() => setActiveFilter("my_projects")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
+                  activeFilter === "my_projects"
+                    ? "bg-emerald-700 text-white font-semibold shadow-2xs"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                My Projects
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Search Bar */}
-        <div className="relative min-w-[280px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Search Input */}
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search projects, keywords, sponsor..."
+            placeholder="Search title, skills, sponsor..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:outline-hidden"
           />
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Projects Grid */}
       {loading ? (
-        <div className="py-20 text-center">
-          <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-3" />
-          <p className="text-sm text-slate-500">Loading research projects...</p>
-        </div>
-      ) : error ? (
-        <div className="p-6 bg-rose-50 border border-rose-200 rounded-xl text-center text-rose-700">
-          <p className="text-sm font-semibold mb-2">Error loading projects</p>
-          <p className="text-xs text-rose-600 mb-4">{error}</p>
-          <button
-            onClick={fetchProjects}
-            className="px-4 py-2 bg-rose-600 text-white text-xs font-semibold rounded-lg hover:bg-rose-700"
-          >
-            Try Again
-          </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-64 rounded-xl border border-slate-200 bg-white p-5 animate-pulse space-y-3">
+              <div className="h-4 bg-slate-100 rounded w-1/3" />
+              <div className="h-6 bg-slate-100 rounded w-3/4" />
+              <div className="h-12 bg-slate-100 rounded" />
+              <div className="h-4 bg-slate-100 rounded w-1/2" />
+            </div>
+          ))}
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="py-16 text-center bg-white border border-slate-200 rounded-xl p-8">
-          <Filter className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-800">No matching projects found</h3>
-          <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-2xs">
+          <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-xl bg-slate-50 text-slate-400 mb-3">
+            <FolderKanban className="h-6 w-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-900">No projects found</h3>
+          <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
             {searchQuery
-              ? `No research projects match "${searchQuery}". Try modifying your search or clearing filters.`
-              : "No projects in this category yet. Be the first sponsor to post one!"}
+              ? `No research projects matched "${searchQuery}". Try adjusting your search query.`
+              : activeFilter === "applications"
+              ? "You have not submitted applications to any projects yet."
+              : activeFilter === "my_projects"
+              ? "You are not an active member or sponsor of any projects yet."
+              : "No research projects are currently open. Be the first sponsor to post one!"}
           </p>
-          {searchQuery && (
-            <button
-              onClick={() => {
-                setSearchQuery("");
-                setActiveTab("all");
-              }}
-              className="mt-4 px-4 py-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+
+          {isSponsor && (
+            <Link
+              href="/projects/new"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors"
             >
-              Clear filters
-            </button>
+              <PlusCircle className="h-3.5 w-3.5" />
+              Post Research Project
+            </Link>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredProjects.map((p) => (
+            <ProjectCard key={p.id} project={p} />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading projects...</div>}>
+      <ProjectsContent />
+    </React.Suspense>
   );
 }
