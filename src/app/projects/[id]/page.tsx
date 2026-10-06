@@ -171,8 +171,71 @@ export default function ProjectDetailPage({
   // M2 Candidate Matching State
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matches, setMatches] = useState<any[] | null>(null);
+  const [invitingCandidateId, setInvitingCandidateId] = useState<string | null>(null);
+  const [invitedCandidateIds, setInvitedCandidateIds] = useState<Set<string>>(new Set());
+  const [respondingToInvite, setRespondingToInvite] = useState(false);
 
-  // M2 ResearchCopilot State
+  // M2: Candidate Matching (Sponsor only)
+  const handleFindMatches = async () => {
+    try {
+      setMatchingLoading(true);
+      const res = await fetch(`/api/projects/${projectId}/match`);
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Matching failed");
+      setMatches(resData.matches || []);
+    } catch (err: any) {
+      setError(err.message || "Failed to find candidate matches");
+    } finally {
+      setMatchingLoading(false);
+    }
+  };
+
+  const handleInviteCandidate = async (candidateId: string) => {
+    if (!session?.access_token) return;
+    try {
+      setInvitingCandidateId(candidateId);
+      setError(null);
+      const res = await fetch(`/api/projects/${projectId}/invite`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ candidateId }),
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Failed to invite candidate");
+      setInvitedCandidateIds((prev) => new Set(prev).add(candidateId));
+      fetchProject();
+    } catch (err: any) {
+      setError(err.message || "Failed to send invitation");
+    } finally {
+      setInvitingCandidateId(null);
+    }
+  };
+
+  const handleRespondToInvitation = async (action: "accept" | "reject") => {
+    if (!session?.access_token) return;
+    try {
+      setRespondingToInvite(true);
+      setError(null);
+      const res = await fetch(`/api/projects/${projectId}/applications`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action }),
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Failed to respond to invitation");
+      await fetchProject();
+    } catch (err: any) {
+      setError(err.message || "Failed to update invitation status");
+    } finally {
+      setRespondingToInvite(false);
+    }
+  };
   const [copilotTask, setCopilotTask] = useState("");
   const [copilotClassification, setCopilotClassification] = useState<"PUBLIC" | "CONFIDENTIAL">("PUBLIC");
   const [copilotLoading, setCopilotLoading] = useState(false);
@@ -502,20 +565,6 @@ export default function ProjectDetailPage({
     }
   };
 
-  // M2: Candidate Matching
-  const handleFindMatches = async () => {
-    try {
-      setMatchingLoading(true);
-      const res = await fetch(`/api/projects/${projectId}/match`);
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || "Matching failed");
-      setMatches(resData.matches || []);
-    } catch (err: any) {
-      setError(err.message || "Failed to find candidate matches");
-    } finally {
-      setMatchingLoading(false);
-    }
-  };
 
   // M2: ResearchCopilot
   const handleAskCopilot = async (customPrompt?: string, customClassification?: "PUBLIC" | "CONFIDENTIAL") => {
@@ -686,6 +735,39 @@ export default function ProjectDetailPage({
         </div>
       )}
 
+      {/* Student Received Sponsor Invitation Banner */}
+      {data.userApplication?.status === "sponsor_invited" && !isMember && (
+        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-indigo-50/90 border-2 border-indigo-200 text-indigo-950 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Users className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-bold text-sm text-indigo-950">
+                You have been invited to join this project by the sponsor!
+              </div>
+              <p className="text-xs text-indigo-800/90 mt-0.5">
+                The sponsor has selected your profile and invited you to collaborate. Accept the invitation to access the workspace, charter, and confidential project brief.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => handleRespondToInvitation("accept")}
+              disabled={respondingToInvite}
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors disabled:opacity-50"
+            >
+              {respondingToInvite ? "Processing..." : "Accept Invitation"}
+            </button>
+            <button
+              onClick={() => handleRespondToInvitation("reject")}
+              disabled={respondingToInvite}
+              className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl transition-colors disabled:opacity-50"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Redesigned 6 Tabs Header */}
       <div className="border-b border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap space-x-2 sm:space-x-6">
@@ -807,9 +889,13 @@ export default function ProjectDetailPage({
           onAiScope={handleAiScope}
           scopingLoading={scopingLoading}
           scopingInfo={scopingInfo}
-          onFindMatches={handleFindMatches}
+          onFindMatches={isSponsor ? handleFindMatches : undefined}
           matchingLoading={matchingLoading}
           matches={matches}
+          isSponsor={isSponsor}
+          onInviteCandidate={handleInviteCandidate}
+          invitingCandidateId={invitingCandidateId}
+          invitedCandidateIds={invitedCandidateIds}
         />
       )}
 

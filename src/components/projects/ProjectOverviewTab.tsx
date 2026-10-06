@@ -17,6 +17,7 @@ import {
   HelpCircle,
   Clock,
   Briefcase,
+  UserPlus,
 } from "lucide-react";
 
 interface ProjectOverviewTabProps {
@@ -53,6 +54,10 @@ interface ProjectOverviewTabProps {
   onFindMatches?: () => void;
   matchingLoading?: boolean;
   matches?: any[] | null;
+  isSponsor?: boolean;
+  onInviteCandidate?: (candidateId: string) => void;
+  invitingCandidateId?: string | null;
+  invitedCandidateIds?: Set<string>;
 }
 
 export function ProjectOverviewTab({
@@ -65,6 +70,10 @@ export function ProjectOverviewTab({
   onFindMatches,
   matchingLoading,
   matches,
+  isSponsor,
+  onInviteCandidate,
+  invitingCandidateId,
+  invitedCandidateIds,
 }: ProjectOverviewTabProps) {
   const [localSummary, setLocalSummary] = useState<string | null>(null);
   const [localSummaryLoading, setLocalSummaryLoading] = useState(false);
@@ -365,8 +374,8 @@ export function ProjectOverviewTab({
         </div>
       </div>
 
-      {/* 5. CANDIDATE MATCHING (WITH CLICKABLE PROFILE LINKS) */}
-      {onFindMatches && (
+      {/* 5. CANDIDATE MATCHING (EXCLUSIVE TO SPONSOR) */}
+      {isSponsor && onFindMatches && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -374,7 +383,7 @@ export function ProjectOverviewTab({
                 Recommended Researchers &amp; Experts
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Calculated deterministically based on skills and conflict-of-interest exclusion.
+                Calculated deterministically based on skills and conflict-of-interest exclusion. Available only to project sponsor.
               </p>
             </div>
 
@@ -433,17 +442,37 @@ export function ProjectOverviewTab({
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-600 leading-relaxed mb-2">
+                  <p className="text-xs text-slate-600 leading-relaxed mb-3">
                     {m.explanation}
                   </p>
 
-                  <div className="text-[11px] text-slate-500">
+                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/60 text-xs">
                     <Link
                       href={`/profile/${m.candidateId}`}
-                      className="text-indigo-600 font-semibold hover:underline inline-flex items-center gap-1"
+                      className="text-indigo-600 font-semibold hover:underline inline-flex items-center gap-1 text-[11px]"
                     >
                       View Full Profile &rarr;
                     </Link>
+
+                    {m.status !== "EXCLUDED" && onInviteCandidate && (
+                      <div>
+                        {invitedCandidateIds?.has(m.candidateId) ? (
+                          <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-semibold">
+                            <Check className="w-3.5 h-3.5" />
+                            Request Sent
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onInviteCandidate(m.candidateId)}
+                            disabled={invitingCandidateId === m.candidateId}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            {invitingCandidateId === m.candidateId ? "Sending..." : "Send Request"}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

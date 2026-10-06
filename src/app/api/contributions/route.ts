@@ -60,6 +60,24 @@ export async function POST(req: NextRequest) {
       aiProvider: aiProvider || "none",
     });
 
+    // Notify the sponsor to review the changes
+    const { data: project } = await admin
+      .from("projects")
+      .select("id, title, sponsor_id")
+      .eq("id", projectId)
+      .single();
+
+    if (project?.sponsor_id) {
+      await admin.from("notifications").insert({
+        user_id: project.sponsor_id,
+        type: "MILESTONE_SUBMITTED",
+        title: "Contribution Submitted for Review",
+        message: `${profile?.display_name || user.email || "A contributor"} submitted changes for "${project.title}" ("${title.trim()}"). Please review the contribution and evaluate impact.`,
+        project_id: projectId,
+        related_user_id: user.id,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       contribution,

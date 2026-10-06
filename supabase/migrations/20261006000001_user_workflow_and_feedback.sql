@@ -40,10 +40,10 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 
--- 2. Allow 'pending_expert_review' in project_members.status
+-- 2. Allow 'pending_expert_review' and 'sponsor_invited' in project_members.status
 ALTER TABLE public.project_members DROP CONSTRAINT IF EXISTS project_members_status_check;
 ALTER TABLE public.project_members ADD CONSTRAINT project_members_status_check 
-  CHECK (status IN ('pending', 'pending_expert_review', 'accepted', 'withdrawn', 'revoked'));
+  CHECK (status IN ('pending', 'pending_expert_review', 'accepted', 'withdrawn', 'revoked', 'sponsor_invited'));
 
 
 -- 3. Project Applications Table
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.project_applications (
     project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     charter_id UUID NOT NULL REFERENCES public.charters(id) ON DELETE CASCADE,
-    status TEXT NOT NULL DEFAULT 'pending_expert_review' CHECK (status IN ('pending_expert_review', 'accepted', 'rejected')),
+    status TEXT NOT NULL DEFAULT 'pending_expert_review' CHECK (status IN ('pending_expert_review', 'accepted', 'rejected', 'sponsor_invited')),
     agreement_ack BOOLEAN NOT NULL DEFAULT TRUE,
     reviewer_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

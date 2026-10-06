@@ -142,7 +142,6 @@ export async function GET(req: NextRequest) {
       const { data: memberships } = await admin
         .from("project_members")
         .select(`
-          id,
           status,
           role,
           project:project_id (
@@ -178,7 +177,7 @@ export async function GET(req: NextRequest) {
         .order("created_at", { ascending: false });
 
       const pendingCount = (applications || []).filter(
-        (a) => a.status === "pending_expert_review"
+        (a) => a.status === "pending_expert_review" || a.status === "sponsor_invited"
       ).length;
 
       // 3. Fetch Verified Credits from reviewed contributions
@@ -187,13 +186,13 @@ export async function GET(req: NextRequest) {
         .select(`
           id,
           project_id,
-          reviews ( impact_score, status )
+          reviews ( impact_score, decision )
         `)
         .eq("owner_id", user.id);
 
       let verifiedCredits = 0;
       for (const c of contributions || []) {
-        const approved = (c.reviews || []).find((r: any) => r.status === "approved");
+        const approved = (c.reviews || []).find((r: any) => r.decision === "APPROVED");
         if (approved) verifiedCredits += Number(approved.impact_score || 0);
       }
 

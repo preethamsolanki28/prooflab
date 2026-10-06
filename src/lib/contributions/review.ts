@@ -161,7 +161,36 @@ export async function submitReview(
         contribution_title: contribution.title,
         credits_awarded: creditsAwarded,
         total_research_credits: newCreditTotal,
+        formula: `Impact (${impactScore}/5) = Quality (${params.quality}) + Usefulness (${params.usefulness}) + Evidence (${params.evidence})`,
       },
+    });
+
+    // Notify contributor: Credits awarded
+    await client.from("notifications").insert({
+      user_id: contribution.owner_id,
+      type: "CREDITS_APPROVED",
+      title: "Contribution Approved & Credits Awarded!",
+      message: `Your contribution "${contribution.title}" was approved with an impact score of ${impactScore}/5. You received +${creditsAwarded} Research Credits (New Balance: ${newCreditTotal} credits). Formula: Quality (${params.quality}/2) + Usefulness (${params.usefulness}/2) + Evidence (${params.evidence}/1) = ${impactScore} credits.`,
+      project_id: contribution.project_id,
+      related_user_id: params.reviewerId,
+    });
+  } else if (params.decision === "REJECTED") {
+    await client.from("notifications").insert({
+      user_id: contribution.owner_id,
+      type: "EXPERT_REJECTED",
+      title: "Contribution Not Accepted",
+      message: `Your contribution "${contribution.title}" was reviewed and not accepted. Notes: ${params.notes || "Please check requirements."}`,
+      project_id: contribution.project_id,
+      related_user_id: params.reviewerId,
+    });
+  } else if (params.decision === "NEEDS_REVISION") {
+    await client.from("notifications").insert({
+      user_id: contribution.owner_id,
+      type: "FEEDBACK_AVAILABLE",
+      title: "Contribution Needs Revision",
+      message: `Your contribution "${contribution.title}" requires revisions before approval. Notes: ${params.notes || "Please review feedback."}`,
+      project_id: contribution.project_id,
+      related_user_id: params.reviewerId,
     });
   }
 

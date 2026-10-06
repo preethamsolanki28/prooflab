@@ -21,6 +21,7 @@ import {
   User,
   Sparkles,
   Lock,
+  Star,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -161,6 +162,14 @@ export default function HomePage() {
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
           <CheckCircle2 className="h-3 w-3" />
           Approved
+        </span>
+      );
+    }
+    if (status === "sponsor_invited") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800 border border-indigo-200">
+          <Star className="h-3 w-3 text-indigo-600 fill-indigo-600" />
+          Invited by Sponsor
         </span>
       );
     }
@@ -576,8 +585,26 @@ export default function HomePage() {
                           Sponsor: {app.project?.sponsor?.display_name || "Research Sponsor"} &bull; {new Date(app.created_at).toLocaleDateString()}
                         </p>
                       </div>
-                      <div>
+                      <div className="flex items-center gap-2 shrink-0">
                         {renderApplicationStatusBadge(app.status)}
+                        {app.status === "sponsor_invited" && (
+                          <div className="flex items-center gap-1.5 ml-1">
+                            <button
+                              onClick={() => handleApplicationAction(app.id, app.project?.id || app.project_id, "accept")}
+                              disabled={actionLoading === app.id}
+                              className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-md text-[11px] font-semibold transition-colors disabled:opacity-50"
+                            >
+                              {actionLoading === app.id ? "..." : "Accept"}
+                            </button>
+                            <button
+                              onClick={() => handleApplicationAction(app.id, app.project?.id || app.project_id, "reject")}
+                              disabled={actionLoading === app.id}
+                              className="px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-md text-[11px] font-semibold transition-colors disabled:opacity-50"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -95,6 +95,14 @@ export default function ApplicationsPage() {
         </span>
       );
     }
+    if (status === "sponsor_invited") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800 border border-indigo-200">
+          <Star className="h-3 w-3 text-indigo-600 fill-indigo-600" />
+          Invited by Sponsor
+        </span>
+      );
+    }
     if (status === "rejected") {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 border border-slate-200">
@@ -285,12 +293,36 @@ export default function ApplicationsPage() {
                       Reject Application
                     </button>
                   </>
+                ) : !isSponsor && app.status === "sponsor_invited" ? (
+                  <>
+                    <button
+                      onClick={() => handleAction(app.id, app.project?.id || app.project_id, "accept")}
+                      disabled={actionLoading === app.id}
+                      className="rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading === app.id ? "Processing..." : "Accept Invitation"}
+                    </button>
+                    <button
+                      onClick={() => handleAction(app.id, app.project?.id || app.project_id, "reject")}
+                      disabled={actionLoading === app.id}
+                      className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                    <Link
+                      href={`/projects/${app.project?.id || app.project_id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+                    >
+                      <span>View</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </>
                 ) : (
                   <Link
                     href={`/projects/${app.project?.id || app.project_id}`}
                     className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
                   >
-                    <span>View Project</span>
+                    <span>{app.status === "accepted" ? "Open Workspace" : "View Project"}</span>
                     <ArrowRight className="h-3 w-3" />
                   </Link>
                 )}
