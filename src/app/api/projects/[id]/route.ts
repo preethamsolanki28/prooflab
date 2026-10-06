@@ -59,8 +59,10 @@ export async function GET(
 
     // 4. Check if current requesting user is authenticated & accepted
     let userAcceptance = null;
+    let userApplication = null;
     let isMember = false;
     let isSponsor = false;
+    let isPending = false;
 
     const authHeader = req.headers.get("authorization");
     const token = authHeader?.replace("Bearer ", "");
@@ -72,16 +74,44 @@ export async function GET(
           isMember = true;
         }
 
+        const { data: memberRecord } = await admin
+          .from("project_members")
+          .select("status, role")
+          .eq("project_id", id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (memberRecord?.status === "accepted") {
+          isMember = true;
+        } else if (memberRecord?.status === "pending") {
+          isPending = true;
+        }
+
         const { data: acceptance } = await admin
           .from("charter_acceptances")
           .select("*")
           .eq("charter_id", charter.id)
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (acceptance) {
           userAcceptance = acceptance;
+          // In M0/M1 tests, charter_acceptances triggers accepted membership
           isMember = true;
+        }
+
+        const { data: appRecord } = await admin
+          .from("project_applications")
+          .select("*")
+          .eq("project_id", id)
+          .eq("student_id", user.id)
+          .maybeSingle();
+
+        if (appRecord) {
+          userApplication = appRecord;
+          if (appRecord.status === "pending_expert_review") {
+            isPending = true;
+          }
         }
       }
     }
@@ -97,7 +127,9 @@ export async function GET(
       charter: charter || null,
       members: members || [],
       userAcceptance,
+      userApplication,
       isMember,
+      isPending,
       isSponsor,
       hasConfidentialBrief: (briefCount ?? 0) > 0,
     });

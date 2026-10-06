@@ -82,11 +82,36 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password?: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   quickLogin: (account: SyntheticAccount) => Promise<void>;
   switchPersona: (email: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
+
+/**
+ * ============================================================================
+ * GOOGLE OAUTH CONFIGURATION GUIDE (SUPABASE + GOOGLE CLOUD)
+ * ============================================================================
+ * To enable live Google sign-in:
+ * 1. Google Cloud Console (https://console.cloud.google.com/):
+ *    - Create/select a project, go to APIs & Services > Credentials.
+ *    - Configure OAuth Consent Screen (User Type: External, Add app name, email).
+ *    - Create Credentials > OAuth 2.0 Client ID (Web Application).
+ *    - Under "Authorized redirect URIs", add your Supabase Auth callback URL:
+ *      https://<project-ref>.supabase.co/auth/v1/callback
+ *      (or for local Supabase: http://127.0.0.1:54321/auth/v1/callback)
+ *    - Copy the Client ID and Client Secret.
+ *
+ * 2. Supabase Dashboard:
+ *    - Navigate to Authentication > Providers > Google.
+ *    - Toggle "Enable Google provider".
+ *    - Paste Client ID and Client Secret from Google Cloud.
+ *    - Under Authentication > URL Configuration:
+ *      - Site URL: http://localhost:3000 (development) or production domain.
+ *      - Redirect URLs: http://localhost:3000/**, https://your-production-app.vercel.app/**
+ * ============================================================================
+ */
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -96,19 +121,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchProfile(userId: string) {
+  async function fetchProfile(userId: string, currentUser?: User | null) {
     try {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         setProfile(data as UserProfile);
+        return;
+      }
+
+      // If profile does not exist yet (e.g. initial Google OAuth sign-in),
+      // initialize it with safe default role 'student' without overwriting anything.
+      const targetUser = currentUser || user;
+      const meta = targetUser?.user_metadata;
+      const derivedName =
+        meta?.full_name ||
+        meta?.name ||
+        meta?.display_name ||
+        (targetUser?.email ? targetUser.email.split("@")[0] : "New Researcher");
+
+      const { data: newProfile, error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          display_name: derivedName,
+          role: "student",
+          skills: [],
+          verified: true,
+        })
+        .select()
+        .maybeSingle();
+
+      if (!insertError && newProfile) {
+        setProfile(newProfile as UserProfile);
+      } else {
+        // Fallback retry select in case of trigger race
+        const { data: retryProfile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle();
+        if (retryProfile) {
+          setProfile(retryProfile as UserProfile);
+        }
       }
     } catch (err) {
-      console.error("Error fetching authoritative profile:", err);
+      console.error("Error fetching or provisioning authoritative profile:", err);
     }
   }
 
@@ -168,6 +230,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function signInWithGoogle() {
+    setLoading(true);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${origin}/login`,
+      },
+    });
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
+  }
+
   async function signOut() {
     setLoading(true);
     await supabase.auth.signOut();
@@ -191,6 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         loading,
         signIn,
+        signInWithGoogle,
         signOut,
         quickLogin,
         switchPersona,

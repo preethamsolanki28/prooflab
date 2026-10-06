@@ -10,7 +10,9 @@ export interface ProjectCardData {
   data_sensitivity: "confidential" | "public" | string;
   status: string;
   created_at: string;
+  sponsor_id?: string;
   profiles?: {
+    id?: string;
     display_name?: string;
   };
   charters?: Array<{
@@ -29,6 +31,7 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
   const budget = charter?.budget ?? (isFunded ? 100000 : 0);
   const milestoneCount = Array.isArray(charter?.milestones_json) ? charter.milestones_json.length : 2;
   const sponsorName = project.profiles?.display_name || "Research Sponsor";
+  const sponsorId = project.sponsor_id || project.profiles?.id;
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden group">
@@ -76,7 +79,19 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
         <div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs text-slate-500 pt-3 border-t border-slate-100">
           <div className="flex items-center gap-1">
             <UserCheck className="w-3.5 h-3.5 text-slate-400" />
-            <span>Sponsor: <strong className="text-slate-700 font-medium">{sponsorName}</strong></span>
+            <span>
+              Sponsor:{" "}
+              {sponsorId ? (
+                <Link
+                  href={`/profile/${sponsorId}`}
+                  className="font-medium text-slate-700 hover:text-indigo-600 hover:underline"
+                >
+                  {sponsorName}
+                </Link>
+              ) : (
+                <strong className="text-slate-700 font-medium">{sponsorName}</strong>
+              )}
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <Shield className="w-3.5 h-3.5 text-slate-400" />

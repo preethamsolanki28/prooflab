@@ -29,7 +29,7 @@ import { issueCredential } from "../src/lib/credentials/service";
 import { verifyLedgerChain, simulateTamperLedger } from "../src/lib/ledger";
 import { routeAiRequest } from "../src/lib/ai/router";
 import { scoreCandidate } from "../src/lib/matching/matcher";
-import { generateWatermark } from "../src/lib/watermark";
+import { generateWatermark } from "@/lib/watermark";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
