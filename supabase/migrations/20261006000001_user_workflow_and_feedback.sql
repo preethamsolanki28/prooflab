@@ -60,6 +60,17 @@ CREATE TABLE IF NOT EXISTS public.project_applications (
     UNIQUE (project_id, student_id)
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_project_applications_profiles'
+  ) THEN
+    ALTER TABLE public.project_applications
+      ADD CONSTRAINT fk_project_applications_profiles
+      FOREIGN KEY (student_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
 ALTER TABLE public.project_applications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Applications readable by applicant, project members, sponsor, expert, admin"
