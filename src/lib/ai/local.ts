@@ -19,17 +19,18 @@ export interface LocalModelResponse {
  * Guarantees zero cloud data leakage while keeping the application responsive.
  */
 export function getDeterministicLocalFallback(prompt: string): string {
-  // Extract brief snippet for context without storing or leaking
-  const safeExcerpt = prompt.slice(0, 60).replace(/[\r\n]+/g, " ");
-
   return [
-    "Local AI unavailable. Confidential data was NOT sent to the cloud.",
+    "Private AI is currently unavailable.",
     "",
     "CONFIDENTIAL RESEARCH WORKSPACE (Deterministic Local Fallback):",
-    `• Context: "${safeExcerpt}..."`,
-    "• Privacy Status: SAFEGUARD ACTIVE. Data processed entirely on-device; zero cloud transmission.",
-    "• Recommended Protocol: Proceed with on-device evaluation; verify local dataset integrity according to accepted Charter terms.",
+    "• Status: LOCAL_AI_UNAVAILABLE",
     "• Security Notice: Local model runtime is unavailable. Confidential input was NOT sent to any cloud provider.",
+    "",
+    "Deployment Requirement:",
+    "To enable on-device confidential AI, deploy an Ollama instance:",
+    "  • Start service: ollama serve",
+    "  • Pull model: ollama pull smollm2:135m (or set LOCAL_LLM_MODEL)",
+    "  • Configure LOCAL_LLM_BASE_URL in your deployment environment (default: http://localhost:11434)",
   ].join("\n");
 }
 

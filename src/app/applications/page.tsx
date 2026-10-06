@@ -319,7 +319,11 @@ export default function ApplicationsPage() {
                   </>
                 ) : (
                   <Link
-                    href={`/projects/${app.project?.id || app.project_id}`}
+                    href={
+                      app.status === "accepted"
+                        ? `/projects/${app.project?.id || app.project_id}?tab=workspace`
+                        : `/projects/${app.project?.id || app.project_id}`
+                    }
                     className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
                   >
                     <span>{app.status === "accepted" ? "Open Workspace" : "View Project"}</span>

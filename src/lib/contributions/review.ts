@@ -9,31 +9,72 @@ import { getUserResearchCredits } from "./service";
 export interface ReviewContributionParams {
   contributionId: string;
   reviewerId: string; // STRICT: Derived from authenticated session
-  quality: number; // 0 to 2
-  usefulness: number; // 0 to 2
-  evidence: number; // 0 to 1
+  impactScore?: number; // 1 to 5 (Simplified Model)
+  quality?: number; // 0 to 2 (DB compatibility)
+  usefulness?: number; // 0 to 2 (DB compatibility)
+  evidence?: number; // 0 to 1 (DB compatibility)
   decision: "APPROVED" | "REJECTED" | "NEEDS_REVISION";
   notes?: string;
 }
 
 /**
- * Validates review scores according to rubric:
- * Quality: 0–2
- * Usefulness / impact: 0–2
- * Evidence / documentation: 0–1
- * Total impact_score: 0–5
+ * Validates review scores.
+ * Simplified system: Impact Score strictly 1–5.
+ * Meaning:
+ * 1 = Small contribution
+ * 2 = Useful contribution
+ * 3 = Solid contribution
+ * 4 = High-impact contribution
+ * 5 = Major contribution
+ * Credits awarded = Impact Score.
  */
-export function validateScores(quality: number, usefulness: number, evidence: number) {
-  if (!Number.isInteger(quality) || quality < 0 || quality > 2) {
+export function validateScores(
+  quality?: number,
+  usefulness?: number,
+  evidence?: number,
+  impactScore?: number,
+  decision?: string
+): { impactScore: number; quality: number; usefulness: number; evidence: number } {
+  // If direct impactScore is provided (Simplified Model)
+  if (impactScore !== undefined && impactScore !== null) {
+    const rawScore = Number(impactScore);
+    if (decision === "APPROVED") {
+      if (!Number.isInteger(rawScore) || rawScore < 1 || rawScore > 5) {
+        throw new Error("Impact score must be an integer between 1 and 5.");
+      }
+    } else {
+      // For rejected / revision, impact is 0
+      if (!Number.isInteger(rawScore) || rawScore < 0 || rawScore > 5) {
+        throw new Error("Impact score must be an integer between 0 and 5.");
+      }
+    }
+
+    const finalImpact = decision === "APPROVED" ? rawScore : 0;
+    // Decompose into valid DB check constraints: quality (0-2), usefulness (0-2), evidence (0-1)
+    const q = Math.min(2, Math.floor(finalImpact / 2));
+    const u = Math.min(2, finalImpact - q);
+    const e = Math.min(1, Math.max(0, finalImpact - q - u));
+
+    return { impactScore: finalImpact, quality: q, usefulness: u, evidence: e };
+  }
+
+  // Fallback for legacy 3-category calls
+  const q = Number(quality ?? 0);
+  const u = Number(usefulness ?? 0);
+  const e = Number(evidence ?? 0);
+
+  if (!Number.isInteger(q) || q < 0 || q > 2) {
     throw new Error("Quality score must be an integer between 0 and 2.");
   }
-  if (!Number.isInteger(usefulness) || usefulness < 0 || usefulness > 2) {
+  if (!Number.isInteger(u) || u < 0 || u > 2) {
     throw new Error("Usefulness score must be an integer between 0 and 2.");
   }
-  if (!Number.isInteger(evidence) || evidence < 0 || evidence > 1) {
+  if (!Number.isInteger(e) || e < 0 || e > 1) {
     throw new Error("Evidence score must be an integer between 0 and 1.");
   }
-  return quality + usefulness + evidence;
+
+  const calculated = q + u + e;
+  return { impactScore: calculated, quality: q, usefulness: u, evidence: e };
 }
 
 /**
@@ -51,12 +92,18 @@ export async function submitReview(
   client: SupabaseClient,
   params: ReviewContributionParams
 ) {
-  // 1. Calculate and validate impact score
-  const impactScore = validateScores(params.quality, params.usefulness, params.evidence);
-
   if (!["APPROVED", "REJECTED", "NEEDS_REVISION"].includes(params.decision)) {
     throw new Error(`Invalid review decision: ${params.decision}`);
   }
+
+  // 1. Calculate and validate impact score (1-5 for simplified model)
+  const { impactScore, quality, usefulness, evidence } = validateScores(
+    params.quality,
+    params.usefulness,
+    params.evidence,
+    params.impactScore,
+    params.decision
+  );
 
   // 2. Fetch the contribution
   const { data: contribution, error: cErr } = await client
@@ -80,9 +127,9 @@ export async function submitReview(
     .insert({
       contribution_id: params.contributionId,
       reviewer_id: params.reviewerId,
-      quality: params.quality,
-      usefulness: params.usefulness,
-      evidence: params.evidence,
+      quality,
+      usefulness,
+      evidence,
       impact_score: impactScore,
       decision: params.decision,
       notes: params.notes || null,
@@ -124,16 +171,13 @@ export async function submitReview(
       contribution_id: contribution.id,
       contribution_title: contribution.title,
       contributor_id: contribution.owner_id,
-      quality: params.quality,
-      usefulness: params.usefulness,
-      evidence: params.evidence,
       impact_score: impactScore,
       decision: params.decision,
       notes: params.notes,
     },
   });
 
-  // 7. If APPROVED, award server-side derived Research Credits
+  // 7. If APPROVED, award server-side derived Research Credits (Credits = Impact Score)
   let creditsAwarded = 0;
   let newCreditTotal = 0;
 
@@ -161,7 +205,7 @@ export async function submitReview(
         contribution_title: contribution.title,
         credits_awarded: creditsAwarded,
         total_research_credits: newCreditTotal,
-        formula: `Impact (${impactScore}/5) = Quality (${params.quality}) + Usefulness (${params.usefulness}) + Evidence (${params.evidence})`,
+        formula: `Credits = Impact Score (${impactScore}/5)`,
       },
     });
 
@@ -170,7 +214,7 @@ export async function submitReview(
       user_id: contribution.owner_id,
       type: "CREDITS_APPROVED",
       title: "Contribution Approved & Credits Awarded!",
-      message: `Your contribution "${contribution.title}" was approved with an impact score of ${impactScore}/5. You received +${creditsAwarded} Research Credits (New Balance: ${newCreditTotal} credits). Formula: Quality (${params.quality}/2) + Usefulness (${params.usefulness}/2) + Evidence (${params.evidence}/1) = ${impactScore} credits.`,
+      message: `Your contribution "${contribution.title}" was approved with an Impact Score of ${impactScore}/5. You received +${creditsAwarded} Research Credits (New Balance: ${newCreditTotal} credits).`,
       project_id: contribution.project_id,
       related_user_id: params.reviewerId,
     });

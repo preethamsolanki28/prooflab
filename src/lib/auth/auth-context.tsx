@@ -14,6 +14,10 @@ export interface UserProfile {
   verified: boolean;
   conflict_of_interest?: boolean;
   created_at: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+  github_url?: string | null;
+  linkedin_url?: string | null;
 }
 
 export interface SyntheticAccount {
@@ -24,57 +28,7 @@ export interface SyntheticAccount {
   desc: string;
 }
 
-export const SYNTHETIC_ACCOUNTS: SyntheticAccount[] = [
-  {
-    email: "sponsor@gardenia.test",
-    password: "Password123!",
-    role: "sponsor",
-    label: "Dr. Ramesh (Sponsor)",
-    desc: "Research sponsor with project & budget authorization",
-  },
-  {
-    email: "student_a@gardenia.test",
-    password: "Password123!",
-    role: "student",
-    label: "Arjun (Student A)",
-    desc: "Primary student researcher (CV, PyTorch, Edge ML)",
-  },
-  {
-    email: "student_b@gardenia.test",
-    password: "Password123!",
-    role: "student",
-    label: "Priya (Student B)",
-    desc: "Web standards & accessibility researcher",
-  },
-  {
-    email: "student_c@gardenia.test",
-    password: "Password123!",
-    role: "student",
-    label: "Kavita (Student C)",
-    desc: "Medical imaging & biostatistics candidate",
-  },
-  {
-    email: "expert@gardenia.test",
-    password: "Password123!",
-    role: "expert",
-    label: "Dr. Ananya (Expert)",
-    desc: "Independent clinical validation expert (eligible)",
-  },
-  {
-    email: "conflict_expert@gardenia.test",
-    password: "Password123!",
-    role: "expert",
-    label: "Dr. Conflict (Conflicted)",
-    desc: "Domain expert with flagged conflict of interest",
-  },
-  {
-    email: "admin@gardenia.test",
-    password: "Password123!",
-    role: "admin",
-    label: "System Admin",
-    desc: "Platform governance and ledger auditor",
-  },
-];
+export const SYNTHETIC_ACCOUNTS: SyntheticAccount[] = [];
 
 interface AuthContextType {
   user: User | null;
@@ -83,7 +37,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password?: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string, role: UserRole) => Promise<{ needsConfirmation: boolean; user: User | null }>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (role?: UserRole) => Promise<void>;
   signOut: () => Promise<void>;
   quickLogin: (account: SyntheticAccount) => Promise<void>;
   switchPersona: (email: string) => Promise<void>;
@@ -122,8 +76,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchProfile(userId: string, currentUser?: User | null) {
+  async function fetchProfile(userId: string, currentUser?: User | null, currentToken?: string) {
     try {
+      const targetUser = currentUser || user;
+      const meta = targetUser?.user_metadata;
+      const derivedName =
+        meta?.full_name ||
+        meta?.name ||
+        meta?.display_name ||
+        (targetUser?.email ? targetUser.email.split("@")[0] : "Researcher");
+
+      // Check intended role from URL or localStorage
+      let intendedRole: UserRole | undefined;
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRole = urlParams.get("role") as UserRole | null;
+        const storedRole = localStorage.getItem("researchmesh_intended_role") as UserRole | null;
+        if (urlRole && ["sponsor", "student", "expert", "admin"].includes(urlRole)) {
+          intendedRole = urlRole;
+        } else if (storedRole && ["sponsor", "student", "expert", "admin"].includes(storedRole)) {
+          intendedRole = storedRole;
+        }
+        if (storedRole) {
+          localStorage.removeItem("researchmesh_intended_role");
+        }
+      }
+
+      const derivedRole = intendedRole || ((meta?.role as UserRole) || "student");
+      const avatarUrl = meta?.avatar_url || meta?.picture || undefined;
+
+      // 1. Try to read existing profile
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
@@ -131,45 +113,97 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (!error && data) {
+        if (intendedRole && data.role !== intendedRole) {
+          const token = currentToken || session?.access_token;
+          if (token) {
+            try {
+              const res = await fetch("/api/profile/ensure", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  userId,
+                  displayName: derivedName,
+                  role: intendedRole,
+                  avatarUrl,
+                }),
+              });
+              if (res.ok) {
+                const json = await res.json();
+                if (json.profile) {
+                  setProfile(json.profile as UserProfile);
+                  return;
+                }
+              }
+            } catch (err) {
+              console.warn("Could not sync updated role:", err);
+            }
+          }
+        }
         setProfile(data as UserProfile);
         return;
       }
 
-      // If profile does not exist yet (e.g. initial Google OAuth sign-in),
-      // initialize it with safe default role 'student' without overwriting anything.
-      const targetUser = currentUser || user;
-      const meta = targetUser?.user_metadata;
-      const derivedName =
-        meta?.full_name ||
-        meta?.name ||
-        meta?.display_name ||
-        (targetUser?.email ? targetUser.email.split("@")[0] : "New Researcher");
+      // 2. Try inserting via server ensure endpoint (admin privileged client)
+      const token = currentToken || session?.access_token;
+      if (token) {
+        try {
+          const res = await fetch("/api/profile/ensure", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              userId,
+              displayName: derivedName,
+              role: derivedRole,
+              avatarUrl,
+            }),
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.profile) {
+              setProfile(json.profile as UserProfile);
+              return;
+            }
+          }
+        } catch (serverErr) {
+          console.warn("Server profile ensure fetch error:", serverErr);
+        }
+      }
 
+      // 3. Fallback direct client insert
       const { data: newProfile, error: insertError } = await supabase
         .from("profiles")
         .insert({
           id: userId,
           display_name: derivedName,
-          role: "student",
+          role: derivedRole,
           skills: [],
           verified: true,
+          avatar_url: avatarUrl,
         })
         .select()
         .maybeSingle();
 
       if (!insertError && newProfile) {
         setProfile(newProfile as UserProfile);
-      } else {
-        // Fallback retry select in case of trigger race
-        const { data: retryProfile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", userId)
-          .maybeSingle();
-        if (retryProfile) {
-          setProfile(retryProfile as UserProfile);
-        }
+        return;
       }
+
+      // 4. Fallback in-memory profile so the user is never blocked or left in unauthenticated state
+      setProfile({
+        id: userId,
+        display_name: derivedName,
+        role: derivedRole,
+        skills: [],
+        verified: true,
+        created_at: new Date().toISOString(),
+        avatar_url: avatarUrl,
+      });
     } catch (err) {
       console.error("Error fetching or provisioning authoritative profile:", err);
     }
@@ -181,7 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id).finally(() => setLoading(false));
+        fetchProfile(session.user.id, session.user, session.access_token).finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
@@ -194,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        await fetchProfile(session.user.id, session.user, session.access_token);
       } else {
         setProfile(null);
       }
@@ -208,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signIn(email: string, password = "Password123!") {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -216,6 +250,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       throw error;
     }
+    if (data?.user) {
+      await fetchProfile(data.user.id, data.user, data.session?.access_token);
+    }
+    setLoading(false);
   }
 
   async function signUp(email: string, password: string, displayName: string, role: UserRole = "student") {
@@ -240,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { needsConfirmation: true, user: data.user };
     }
     if (data?.user) {
-      await fetchProfile(data.user.id, data.user);
+      await fetchProfile(data.user.id, data.user, data.session?.access_token);
     }
     setLoading(false);
     return { needsConfirmation: false, user: data?.user ?? null };
@@ -259,13 +297,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function signInWithGoogle() {
+  async function signInWithGoogle(intendedRole?: UserRole) {
     setLoading(true);
+    if (typeof window !== "undefined" && intendedRole) {
+      localStorage.setItem("researchmesh_intended_role", intendedRole);
+    }
     const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const redirectUrl = intendedRole ? `${origin}/?role=${intendedRole}` : `${origin}/`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${origin}/login`,
+        redirectTo: redirectUrl,
       },
     });
     if (error) {

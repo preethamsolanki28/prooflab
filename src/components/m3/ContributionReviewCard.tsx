@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Award, CheckCircle2, XCircle, AlertCircle, ShieldCheck, Scale, Star } from "lucide-react";
+import { Award, CheckCircle2, XCircle, AlertCircle, Scale, Star, FileCode } from "lucide-react";
 
 interface Contribution {
   id: string;
@@ -14,6 +14,7 @@ interface Contribution {
   ai_assisted: boolean;
   ai_provider: string;
   created_at: string;
+  files?: string[] | string;
   owner?: {
     id: string;
     display_name: string;
@@ -21,9 +22,6 @@ interface Contribution {
   };
   reviews?: Array<{
     id: string;
-    quality: number;
-    usefulness: number;
-    evidence: number;
     impact_score: number;
     decision: string;
     notes?: string;
@@ -38,6 +36,14 @@ interface ContributionReviewCardProps {
   onReviewed: () => void;
 }
 
+const IMPACT_LEVELS = [
+  { value: 1, label: "1 — Small", description: "Small contribution" },
+  { value: 2, label: "2 — Useful", description: "Useful contribution" },
+  { value: 3, label: "3 — Solid", description: "Solid contribution" },
+  { value: 4, label: "4 — High-impact", description: "High-impact contribution" },
+  { value: 5, label: "5 — Major", description: "Major contribution" },
+];
+
 export default function ContributionReviewCard({
   contributions,
   currentUserId,
@@ -46,10 +52,7 @@ export default function ContributionReviewCard({
   onReviewed,
 }: ContributionReviewCardProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [quality, setQuality] = useState<number>(2);
-  const [usefulness, setUsefulness] = useState<number>(2);
-  const [evidence, setEvidence] = useState<number>(1);
-  const [decision, setDecision] = useState<"APPROVED" | "REJECTED" | "NEEDS_REVISION">("APPROVED");
+  const [impactScore, setImpactScore] = useState<number>(3);
   const [notes, setNotes] = useState<string>("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -57,11 +60,8 @@ export default function ContributionReviewCard({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const canReview = userRole === "expert" || userRole === "sponsor" || userRole === "admin";
-  const impactScore = quality + usefulness + evidence;
 
-  const activeContrib = contributions.find((c) => c.id === selectedId);
-
-  const handleSubmitReview = async () => {
+  const handleReviewAction = async (decision: "APPROVED" | "REJECTED") => {
     if (!selectedId) return;
 
     try {
@@ -76,11 +76,9 @@ export default function ContributionReviewCard({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          quality,
-          usefulness,
-          evidence,
+          impactScore: decision === "APPROVED" ? impactScore : 0,
           decision,
-          notes,
+          notes: notes.trim() || undefined,
         }),
       });
 
@@ -89,11 +87,14 @@ export default function ContributionReviewCard({
         throw new Error(data.error || "Review submission failed");
       }
 
-      setSuccessMsg(
-        `Review recorded: ${decision}. Impact Score: ${impactScore}/5. ${
-          decision === "APPROVED" ? `Awarded +${impactScore} Research Credits.` : ""
-        }`
-      );
+      if (decision === "APPROVED") {
+        setSuccessMsg(
+          `Contribution approved! Impact Score: ${impactScore}/5. Awarded +${impactScore} Research Credits.`
+        );
+      } else {
+        setSuccessMsg("Contribution rejected. 0 credits awarded.");
+      }
+
       setSelectedId(null);
       setNotes("");
       onReviewed();
@@ -105,61 +106,70 @@ export default function ContributionReviewCard({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-6">
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-            <Scale className="w-4 h-4 text-amber-600" />
-            Contribution Peer Review & Impact Scoring
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <Scale className="w-4 h-4 text-emerald-700" />
+            Contribution Review &amp; Impact Scoring
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Credits are derived strictly from reviewed impact (Max 5), never from commit counts or AI calls.
+            Evaluate submitted work. Approved credits equal the selected Impact Score (1–5).
           </p>
         </div>
-        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-          Impact Score Rubric (0–5)
+        <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+          Impact: 1–5 Credits
         </span>
       </div>
 
       {errorMsg && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs">
-          {errorMsg}
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs">
-          {successMsg}
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{successMsg}</span>
         </div>
       )}
 
       {/* Contributions List */}
       <div className="space-y-3">
         {contributions.length === 0 ? (
-          <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+          <div className="p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
             No contributions submitted yet for review.
           </div>
         ) : (
           contributions.map((c) => {
             const isApproved = c.status === "accepted";
             const isRejected = c.status === "rejected";
-            const isPending = c.status === "submitted" || c.status === "reviewed";
             const review = c.reviews && c.reviews.length > 0 ? c.reviews[0] : null;
             const isOwn = c.owner_id === currentUserId;
+            const studentName = c.owner?.display_name || "Student Researcher";
+
+            // Format files display
+            const filesDisplay = Array.isArray(c.files)
+              ? c.files.join(", ")
+              : typeof c.files === "string" && c.files
+              ? c.files
+              : `${c.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.py`;
 
             return (
               <div
                 key={c.id}
-                className={`p-4 rounded-xl border transition-all ${
+                className={`p-5 rounded-xl border transition-all ${
                   c.id === selectedId
-                    ? "border-indigo-500 bg-indigo-50/20 shadow-xs"
+                    ? "border-emerald-600 bg-emerald-50/20 shadow-xs"
                     : "border-slate-200 hover:border-slate-300 bg-white"
                 }`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-900">{c.title}</span>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-slate-900">{c.title}</span>
                       <span
                         className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${
                           isApproved
@@ -177,15 +187,17 @@ export default function ContributionReviewCard({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-600 line-clamp-2">{c.summary}</p>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
-                      <span>Owner: {c.owner?.display_name || c.owner_id.slice(0, 8)}</span>
+
+                    <p className="text-xs text-slate-600 leading-relaxed">{c.summary}</p>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400 font-mono pt-1">
+                      <span>Student: <strong className="text-slate-700 font-sans">{studentName}</strong></span>
                       <span>•</span>
-                      <span>Hash: {c.content_hash.slice(0, 12)}...</span>
+                      <span>Files: <code className="text-slate-700">{filesDisplay}</code></span>
                       {review && (
                         <>
                           <span>•</span>
-                          <span className="text-emerald-700 font-bold">
+                          <span className="text-emerald-700 font-bold font-sans">
                             Impact: {review.impact_score}/5 (+{review.impact_score} Credits)
                           </span>
                         </>
@@ -195,10 +207,14 @@ export default function ContributionReviewCard({
 
                   {canReview && !isOwn && (
                     <button
-                      onClick={() => setSelectedId(c.id === selectedId ? null : c.id)}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors"
+                      onClick={() => {
+                        setSelectedId(c.id === selectedId ? null : c.id);
+                        setImpactScore(3);
+                        setNotes("");
+                      }}
+                      className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors shadow-2xs"
                     >
-                      {c.id === selectedId ? "Close Review" : "Score Contribution"}
+                      {c.id === selectedId ? "Close Review" : "Review Contribution"}
                     </button>
                   )}
 
@@ -209,149 +225,111 @@ export default function ContributionReviewCard({
                   )}
                 </div>
 
-                {/* Inline Scoring Modal for Selected Contribution */}
+                {/* Section 11: Sponsor Contribution Review UI */}
                 {c.id === selectedId && (
-                  <div className="mt-4 pt-4 border-t border-slate-200 bg-slate-50/80 p-4 rounded-xl space-y-4">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Evaluate: {c.title}
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                      {/* Quality Score 0-2 */}
-                      <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
-                        <label className="font-semibold text-slate-700 flex justify-between">
-                          <span>Quality</span>
-                          <span className="font-mono text-indigo-600 font-bold">{quality} / 2</span>
-                        </label>
-                        <p className="text-[10px] text-slate-400">Technical rigor & correctness</p>
-                        <div className="flex gap-1 pt-1">
-                          {[0, 1, 2].map((v) => (
-                            <button
-                              key={v}
-                              type="button"
-                              onClick={() => setQuality(v)}
-                              className={`flex-1 py-1 rounded text-xs font-mono font-bold border ${
-                                quality === v
-                                  ? "bg-indigo-600 text-white border-indigo-600"
-                                  : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
-                              }`}
-                            >
-                              {v}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Usefulness Score 0-2 */}
-                      <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
-                        <label className="font-semibold text-slate-700 flex justify-between">
-                          <span>Usefulness / Impact</span>
-                          <span className="font-mono text-indigo-600 font-bold">{usefulness} / 2</span>
-                        </label>
-                        <p className="text-[10px] text-slate-400">Milestone objective utility</p>
-                        <div className="flex gap-1 pt-1">
-                          {[0, 1, 2].map((v) => (
-                            <button
-                              key={v}
-                              type="button"
-                              onClick={() => setUsefulness(v)}
-                              className={`flex-1 py-1 rounded text-xs font-mono font-bold border ${
-                                usefulness === v
-                                  ? "bg-indigo-600 text-white border-indigo-600"
-                                  : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
-                              }`}
-                            >
-                              {v}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Evidence Score 0-1 */}
-                      <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
-                        <label className="font-semibold text-slate-700 flex justify-between">
-                          <span>Evidence / Docs</span>
-                          <span className="font-mono text-indigo-600 font-bold">{evidence} / 1</span>
-                        </label>
-                        <p className="text-[10px] text-slate-400">Reproducibility & artifacts</p>
-                        <div className="flex gap-1 pt-1">
-                          {[0, 1].map((v) => (
-                            <button
-                              key={v}
-                              type="button"
-                              onClick={() => setEvidence(v)}
-                              className={`flex-1 py-1 rounded text-xs font-mono font-bold border ${
-                                evidence === v
-                                  ? "bg-indigo-600 text-white border-indigo-600"
-                                  : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
-                              }`}
-                            >
-                              {v}
-                            </button>
-                          ))}
-                        </div>
+                  <div className="mt-5 pt-5 border-t border-slate-200 bg-slate-50/80 p-5 rounded-xl space-y-4">
+                    <div className="space-y-1 border-b border-slate-200 pb-3">
+                      <p className="text-[11px] uppercase font-bold text-slate-500 tracking-wider">
+                        Contribution Review
+                      </p>
+                      <div className="text-xs text-slate-800 space-y-1">
+                        <p>
+                          <strong className="text-slate-600 font-semibold">Student: </strong>
+                          {studentName}
+                        </p>
+                        <p>
+                          <strong className="text-slate-600 font-semibold">What changed: </strong>
+                          {c.summary}
+                        </p>
+                        <p>
+                          <strong className="text-slate-600 font-semibold">Files: </strong>
+                          <span className="font-mono text-[11px] text-slate-700">{filesDisplay}</span>
+                        </p>
                       </div>
                     </div>
 
-                    {/* Total Impact Score & Decision */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 bg-white rounded-lg border border-slate-200 text-xs">
-                      <div>
-                        <span className="text-slate-500">Calculated Impact Score:</span>
-                        <span className="ml-2 text-base font-extrabold font-mono text-emerald-600">
-                          {impactScore} / 5
-                        </span>
-                        <span className="text-[11px] text-slate-400 ml-2 font-mono">
-                          ({quality} + {usefulness} + {evidence})
+                    {/* Impact Score Selector: 1 to 5 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                          Contribution Impact
+                        </label>
+                        <span className="text-xs font-mono font-bold text-emerald-700">
+                          Credits awarded = {impactScore}
                         </span>
                       </div>
 
-                      <div className="flex gap-2">
-                        {(["APPROVED", "REJECTED", "NEEDS_REVISION"] as const).map((d) => (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => setDecision(d)}
-                            className={`px-3 py-1.5 rounded-lg font-semibold text-xs border ${
-                              decision === d
-                                ? d === "APPROVED"
-                                  ? "bg-emerald-600 text-white border-emerald-600"
-                                  : d === "REJECTED"
-                                  ? "bg-rose-600 text-white border-rose-600"
-                                  : "bg-amber-600 text-white border-amber-600"
-                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                            }`}
-                          >
-                            {d}
-                          </button>
-                        ))}
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {IMPACT_LEVELS.map((level) => {
+                          const isSelected = impactScore === level.value;
+                          return (
+                            <button
+                              key={level.value}
+                              type="button"
+                              onClick={() => setImpactScore(level.value)}
+                              className={`p-2.5 rounded-xl text-left border transition-all ${
+                                isSelected
+                                  ? "bg-emerald-700 text-white border-emerald-700 shadow-xs"
+                                  : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className={`text-sm font-extrabold font-mono ${isSelected ? "text-white" : "text-emerald-700"}`}>
+                                  {level.value}
+                                </span>
+                                <span className={`text-[10px] font-semibold ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>
+                                  {level.value} Cr
+                                </span>
+                              </div>
+                              <p className={`text-[11px] font-medium mt-1 leading-snug line-clamp-1 ${isSelected ? "text-emerald-100" : "text-slate-600"}`}>
+                                {level.description.replace(" contribution", "")}
+                              </p>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    <div>
-                      <input
-                        type="text"
+                    {/* Optional explanation */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-700">
+                        Optional explanation:
+                      </label>
+                      <textarea
+                        rows={2}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Reviewer rationale / feedback..."
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-800"
+                        placeholder="Why this contribution received this score..."
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-700 placeholder:text-slate-400"
                       />
                     </div>
 
-                    <div className="flex justify-end gap-2">
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2 border-t border-slate-200">
                       <button
                         type="button"
                         onClick={() => setSelectedId(null)}
-                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold"
+                        className="w-full sm:w-auto px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={handleSubmitReview}
+                        onClick={() => handleReviewAction("REJECTED")}
                         disabled={submitting}
-                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50"
+                        className="w-full sm:w-auto px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
                       >
-                        {submitting ? "Recording..." : `Submit Review (${decision})`}
+                        {submitting ? "Processing..." : "Reject Contribution"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReviewAction("APPROVED")}
+                        disabled={submitting}
+                        className="w-full sm:w-auto px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+                      >
+                        {submitting
+                          ? "Approving..."
+                          : `Approve Contribution (${impactScore} Credits)`}
                       </button>
                     </div>
                   </div>

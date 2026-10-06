@@ -27,11 +27,17 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (user && profile) {
+      router.push("/");
+    }
+  }, [user, profile, router]);
+
   async function handleGoogleLogin() {
     try {
       setLoading(true);
       setError(null);
-      await signInWithGoogle();
+      await signInWithGoogle(mode === "signup" ? role : undefined);
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
       setLoading(false);
@@ -168,14 +174,47 @@ export default function LoginPage() {
           </div>
         )}
 
+        {/* Role Selector on Signup Mode */}
+        {mode === "signup" && (
+          <div className="mt-5">
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              Account Role
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setRole("student")}
+                className={`rounded-lg border p-2 text-center text-xs font-medium transition-all ${
+                  role === "student"
+                    ? "border-emerald-600 bg-emerald-50/70 text-emerald-800 font-semibold shadow-2xs"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Student / Researcher
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("sponsor")}
+                className={`rounded-lg border p-2 text-center text-xs font-medium transition-all ${
+                  role === "sponsor"
+                    ? "border-emerald-600 bg-emerald-50/70 text-emerald-800 font-semibold shadow-2xs"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Sponsor / Org
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Continue with Google OAuth Button */}
-        <div className="mt-5">
+        <div className="mt-4">
           <button
             id="btn-continue-google"
             type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-400 focus:outline-hidden disabled:opacity-60 transition-all"
+            className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-400 focus:outline-hidden disabled:opacity-60 transition-all"
           >
             <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
               <path
@@ -195,7 +234,13 @@ export default function LoginPage() {
                 fill="#EA4335"
               />
             </svg>
-            <span>{loading ? "Connecting..." : "Continue with Google"}</span>
+            <span>
+              {loading
+                ? "Connecting..."
+                : mode === "signup"
+                ? `Continue with Google as ${role === "sponsor" ? "Sponsor" : "Student"}`
+                : "Continue with Google"}
+            </span>
           </button>
         </div>
 
@@ -211,54 +256,22 @@ export default function LoginPage() {
         {/* Email & Password Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {mode === "signup" && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-slate-700">
-                  Full Name
-                </label>
-                <div className="relative mt-1">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="e.g. Dr. Ramesh Kumar or Arjun Patel"
-                    required
-                    className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
-                  />
-                </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700">
+                Full Name
+              </label>
+              <div className="relative mt-1">
+                <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Dr. Ramesh Kumar or Arjun Patel"
+                  required
+                  className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-hidden"
+                />
               </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700">
-                  Account Type
-                </label>
-                <div className="mt-1 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRole("student")}
-                    className={`rounded-lg border p-2 text-center text-xs font-medium transition-all ${
-                      role === "student"
-                        ? "border-emerald-600 bg-emerald-50/50 text-emerald-800"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Student / Researcher
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole("sponsor")}
-                    className={`rounded-lg border p-2 text-center text-xs font-medium transition-all ${
-                      role === "sponsor"
-                        ? "border-emerald-600 bg-emerald-50/50 text-emerald-800"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Sponsor / Org
-                  </button>
-                </div>
-              </div>
-            </>
+            </div>
           )}
 
           <div>

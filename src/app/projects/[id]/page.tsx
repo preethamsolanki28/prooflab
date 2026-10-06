@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   ShieldCheck,
@@ -25,6 +26,7 @@ import {
   Bot,
   Send,
   Terminal,
+  Code,
   Check,
   XCircle,
   AlertTriangle,
@@ -38,6 +40,7 @@ import { ProjectOverviewTab } from "@/components/projects/ProjectOverviewTab";
 import { ProjectWorkTab } from "@/components/projects/ProjectWorkTab";
 import { ProjectAgreementTab } from "@/components/projects/ProjectAgreementTab";
 import { ProjectTeamTab } from "@/components/projects/ProjectTeamTab";
+import { BrowserIDE } from "@/components/workspace/BrowserIDE";
 
 import SponsorWithdrawalCard from "@/components/m3/SponsorWithdrawalCard";
 import DisputesSection from "@/components/m3/DisputesSection";
@@ -124,10 +127,19 @@ export default function ProjectDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Active tab: overview | work | agreement | confidential | feedback | security
+  const searchParams = useSearchParams();
+
+  // Active tab: overview | workspace | work | agreement | confidential | feedback | security
   const [activeTab, setActiveTab] = useState<
-    "overview" | "work" | "agreement" | "confidential" | "feedback" | "security"
+    "overview" | "workspace" | "work" | "agreement" | "confidential" | "feedback" | "security"
   >("overview");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "workspace") setActiveTab("workspace");
+    else if (tabParam === "work") setActiveTab("work");
+    else if (tabParam === "agreement") setActiveTab("agreement");
+  }, [searchParams]);
 
   // M3 Contributions, Credits, Disputes & Credentials State
   const [contributions, setContributions] = useState<any[]>([]);
@@ -785,7 +797,26 @@ export default function ProjectDetailPage({
             Overview
           </button>
 
-          {/* Tab 2: Work & Earnings */}
+          {/* Tab 2: Workspace */}
+          <button
+            id="tab-workspace"
+            onClick={() => setActiveTab("workspace")}
+            className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex items-center gap-2 ${
+              activeTab === "workspace"
+                ? "border-emerald-700 text-emerald-800"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <Code className="w-4 h-4" />
+            Workspace
+            {isApprovedMember || isSponsor ? (
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            ) : (
+              <Lock className="w-3 h-3 text-slate-400" />
+            )}
+          </button>
+
+          {/* Tab 3: Work & Earnings */}
           <button
             id="tab-work"
             onClick={() => setActiveTab("work")}
@@ -900,7 +931,24 @@ export default function ProjectDetailPage({
       )}
 
       {/* ================================================================ */}
-      {/* TAB 2: WORK & EARNINGS */}
+      {/* TAB: WORKSPACE (Integrated Browser IDE) */}
+      {/* ================================================================ */}
+      {activeTab === "workspace" && (
+        <BrowserIDE
+          projectId={project.id}
+          projectTitle={project.title}
+          githubRepoUrl={(project as any).github_repo_url}
+          token={session?.access_token}
+          isApprovedMember={isApprovedMember}
+          isSponsor={isSponsor}
+          onOpenContributionModal={() => {
+            setActiveTab("work");
+          }}
+        />
+      )}
+
+      {/* ================================================================ */}
+      {/* TAB 3: WORK & EARNINGS */}
       {/* ================================================================ */}
       {activeTab === "work" && (
         <ProjectWorkTab

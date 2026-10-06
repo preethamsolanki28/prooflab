@@ -24,6 +24,7 @@ import {
   X,
   ChevronRight,
   ExternalLink,
+  Calculator,
 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -217,6 +218,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               </div>
             </Link>
+
+            {/* Student Earnings & Credits */}
+            {!isSponsor && (
+              <>
+                <Link href="/credits" className={navItemClass(pathname === "/credits")}>
+                  <Award className="h-4 w-4 shrink-0 text-slate-500" />
+                  <span>Credits</span>
+                </Link>
+                <Link href="/rewards" className={navItemClass(pathname === "/rewards")}>
+                  <Calculator className="h-4 w-4 shrink-0 text-slate-500" />
+                  <span>Reward Calculator</span>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Sponsor Finance Section */}
@@ -230,8 +245,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span>Escrow</span>
               </Link>
               <Link href="/rewards" className={navItemClass(pathname === "/rewards")}>
-                <Award className="h-4 w-4 shrink-0 text-slate-500" />
-                <span>Rewards</span>
+                <Calculator className="h-4 w-4 shrink-0 text-slate-500" />
+                <span>Reward Calculator</span>
               </Link>
             </div>
           )}
@@ -461,6 +476,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Briefcase className="h-4 w-4" />
               <span>Workspaces</span>
+            </Link>
+            <Link
+              href="/credits"
+              onClick={() => setMobileMenuOpen(false)}
+              className={navItemClass(pathname === "/credits")}
+            >
+              <Award className="h-4 w-4" />
+              <span>Credits</span>
+            </Link>
+            <Link
+              href="/rewards"
+              onClick={() => setMobileMenuOpen(false)}
+              className={navItemClass(pathname === "/rewards")}
+            >
+              <Calculator className="h-4 w-4" />
+              <span>Reward Calculator</span>
             </Link>
             <Link
               href="/notifications"

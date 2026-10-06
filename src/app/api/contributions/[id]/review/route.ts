@@ -35,14 +35,17 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { quality, usefulness, evidence, decision, notes } = body;
+    const { quality, usefulness, evidence, impactScore, impact_score, decision, notes } = body;
+
+    const chosenImpact = impactScore !== undefined ? Number(impactScore) : impact_score !== undefined ? Number(impact_score) : undefined;
 
     const result = await submitReview(admin, {
       contributionId,
       reviewerId: user.id, // STRICT: Derived from session
-      quality: Number(quality),
-      usefulness: Number(usefulness),
-      evidence: Number(evidence),
+      impactScore: chosenImpact,
+      quality: quality !== undefined ? Number(quality) : undefined,
+      usefulness: usefulness !== undefined ? Number(usefulness) : undefined,
+      evidence: evidence !== undefined ? Number(evidence) : undefined,
       decision,
       notes,
     });

@@ -316,6 +316,19 @@ export function ProjectWorkTab({
                 <p>• Baseline Model: /models/quantized_mobilenet_v3.onnx</p>
                 <p>• Evaluation Script: python evaluate.py --cohort test_500</p>
               </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+                <span className="text-[11px] text-slate-400">
+                  Full browser IDE with file explorer, code editor, and interactive terminal.
+                </span>
+                <Link
+                  href={`/projects/${project.id}?tab=workspace`}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
+                >
+                  <Code className="h-3.5 w-3.5" />
+                  Open Browser IDE
+                </Link>
+              </div>
             </div>
 
             {/* Contribution Submission Card */}

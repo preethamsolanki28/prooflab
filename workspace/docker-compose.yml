@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  workspace-ide:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: researchmesh-workspace-ide
+    restart: unless-stopped
+    environment:
+      - PASSWORD=${WORKSPACE_PASSWORD:-secure_ide_pass_2026}
+      - SUDO_PASSWORD=${WORKSPACE_SUDO_PASSWORD:-secure_root_pass_2026}
+    volumes:
+      - workspace-data:/home/coder/projects
+    networks:
+      - workspace-net
+    expose:
+      - "8080"
+
+  workspace-proxy:
+    image: nginx:alpine
+    container_name: researchmesh-workspace-proxy
+    restart: unless-stopped
+    ports:
+      - "8443:443"
+      - "8081:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - workspace-ide
+    networks:
+      - workspace-net
+
+volumes:
+  workspace-data:
+    driver: local
+
+networks:
+  workspace-net:
+    driver: bridge

@@ -544,7 +544,7 @@ export default function HomePage() {
                         </div>
                       </div>
                       <Link
-                        href={`/projects/${p.id}`}
+                        href={`/projects/${p.id}?tab=workspace`}
                         className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
                       >
                         Open Workspace

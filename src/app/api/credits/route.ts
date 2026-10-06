@@ -5,14 +5,25 @@ import { getUserResearchCredits } from "@/lib/contributions/service";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
+    let userId = searchParams.get("userId");
     const projectId = searchParams.get("projectId") || undefined;
 
+    const admin = createAdminClient();
+
     if (!userId) {
-      return NextResponse.json({ error: "userId query parameter is required" }, { status: 400 });
+      const authHeader = req.headers.get("authorization");
+      const token = authHeader?.replace("Bearer ", "");
+      if (token) {
+        const { data: { user } } = await admin.auth.getUser(token);
+        if (user) {
+          userId = user.id;
+        }
+      }
     }
 
-    const admin = createAdminClient();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized: Missing user authentication" }, { status: 401 });
+    }
     const credits = await getUserResearchCredits(admin, userId, projectId);
     return NextResponse.json(credits);
   } catch (err: any) {

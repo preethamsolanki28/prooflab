@@ -172,6 +172,10 @@ export async function getUserResearchCredits(
       created_at,
       project_id,
       milestone_id,
+      projects:project_id (
+        id,
+        title
+      ),
       reviews (
         quality,
         usefulness,
@@ -197,7 +201,11 @@ export async function getUserResearchCredits(
   const items: Array<{
     contributionId: string;
     title: string;
+    summary?: string;
+    projectTitle: string;
     impactScore: number;
+    credits: number;
+    status: string;
     quality: number;
     usefulness: number;
     evidence: number;
@@ -214,10 +222,15 @@ export async function getUserResearchCredits(
     if (approvedReview) {
       const impact = Number(approvedReview.impact_score || 0);
       totalCredits += impact;
+      const proj = Array.isArray(c.projects) ? c.projects[0] : c.projects;
       items.push({
         contributionId: c.id,
         title: c.title,
+        summary: c.summary,
+        projectTitle: proj?.title || "Research Project",
         impactScore: impact,
+        credits: impact,
+        status: "Approved",
         quality: approvedReview.quality,
         usefulness: approvedReview.usefulness,
         evidence: approvedReview.evidence,
